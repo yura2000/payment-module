@@ -99,6 +99,19 @@ void main() {
         ),
       ],
     );
+
+    blocTest<PaymentConfirmationBloc, PaymentConfirmationState>(
+      'in-flight query failing is treated as no in-flight job: loads the payment and scans',
+      build: () {
+        processor.inFlightError = const TransportException('no reply in 5 s');
+        repository.completeWith(testPayment);
+        return buildBloc();
+      },
+      act: (bloc) => bloc.add(const Started()),
+      expect: () => [
+        const PaymentConfirmationState(payment: testPayment, phase: Scanning()),
+      ],
+    );
   });
 
   group('Scanning', () {
@@ -257,6 +270,30 @@ void main() {
       act: (bloc) {
         processor.startError = const ServiceException('no Activity attached');
         bloc.add(const PayPressed(unblockedVerdict));
+      },
+      expect: () => [
+        const PaymentConfirmationState(
+          payment: testPayment,
+          phase: Processing(0),
+        ),
+        const PaymentConfirmationState(
+          payment: testPayment,
+          phase: Completed(Failed(PaymentFailure.serviceUnavailable)),
+        ),
+      ],
+    );
+
+    blocTest<PaymentConfirmationBloc, PaymentConfirmationState>(
+      'the job stream failing moves Processing to Completed(Failed(serviceUnavailable))',
+      build: buildBloc,
+      seed: () => const PaymentConfirmationState(
+        payment: testPayment,
+        phase: AwaitingConfirmation(),
+      ),
+      act: (bloc) async {
+        bloc.add(const PayPressed(unblockedVerdict));
+        await Future<void>.delayed(Duration.zero);
+        processor.pushError(const TransportException('malformed snapshot'));
       },
       expect: () => [
         const PaymentConfirmationState(
