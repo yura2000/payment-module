@@ -12,11 +12,19 @@ import_lint:
       except: []
     core_depends_on_nothing:
       target: "package:payment_module/core/**.dart"
-      from: "package:payment_module/{brand_engine,features,app,brands,bootstrap}/**.dart"
+      from: "package:payment_module/{brand_engine,native_bridge,features,app,brands,bootstrap}/**.dart"
       except: []
     engine_knows_no_features:
       target: "package:payment_module/brand_engine/**.dart"
-      from: "package:payment_module/{features,app,brands,bootstrap}/**.dart"
+      from: "package:payment_module/{native_bridge,features,app,brands,bootstrap}/**.dart"
+      except: []
+    native_bridge_depends_on_core_only:
+      target: "package:payment_module/native_bridge/**.dart"
+      from: "package:payment_module/{brand_engine,features,app,brands,bootstrap}/**.dart"
+      except: []
+    native_bridge_via_barrel:
+      target: "package:payment_module/{features,bootstrap}/**.dart"
+      from: "package:payment_module/native_bridge/src/**.dart"
       except: []
     domain_no_data:
       target: "package:payment_module/features/*/src/domain/**.dart"
