@@ -3,19 +3,24 @@ import 'package:payment_module/features/payment/payment.dart';
 
 void main() {
   group('PaymentReceipt', () {
-    test('two receipts with the same reference and completion time are equal', () {
-      final completedAt = DateTime.utc(2026, 9, 16, 12);
-      expect(
-        PaymentReceipt(reference: 'PAY-1', completedAt: completedAt),
-        equals(PaymentReceipt(reference: 'PAY-1', completedAt: completedAt)),
-      );
-    });
+    test(
+      'two receipts with the same reference and completion time are equal',
+      () {
+        final completedAt = DateTime.utc(2026, 9, 16, 12);
+        expect(
+          PaymentReceipt(reference: 'PAY-1', completedAt: completedAt),
+          equals(PaymentReceipt(reference: 'PAY-1', completedAt: completedAt)),
+        );
+      },
+    );
 
     test('receipts with different references are not equal', () {
       final completedAt = DateTime.utc(2026, 9, 16, 12);
       expect(
         PaymentReceipt(reference: 'PAY-1', completedAt: completedAt),
-        isNot(equals(PaymentReceipt(reference: 'PAY-2', completedAt: completedAt))),
+        isNot(
+          equals(PaymentReceipt(reference: 'PAY-2', completedAt: completedAt)),
+        ),
       );
     });
   });
@@ -30,7 +35,10 @@ void main() {
     });
 
     test('two Succeeded values with the same receipt are equal', () {
-      final receipt = PaymentReceipt(reference: 'PAY-1', completedAt: DateTime.utc(2026, 9, 16));
+      final receipt = PaymentReceipt(
+        reference: 'PAY-1',
+        completedAt: DateTime.utc(2026, 9, 16),
+      );
       expect(Succeeded(receipt), equals(Succeeded(receipt)));
     });
 

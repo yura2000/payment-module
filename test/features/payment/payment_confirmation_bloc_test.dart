@@ -27,7 +27,10 @@ const blockedVerdict = PolicyVerdict(
   notices: {},
 );
 
-final testReceipt = PaymentReceipt(reference: 'PAY-TEST-0001', completedAt: DateTime.utc(2026, 9, 16));
+final testReceipt = PaymentReceipt(
+  reference: 'PAY-TEST-0001',
+  completedAt: DateTime.utc(2026, 9, 16),
+);
 
 void main() {
   late FakePaymentRepository repository;
@@ -40,8 +43,11 @@ void main() {
 
   tearDown(() => processor.dispose());
 
-  PaymentConfirmationBloc buildBloc() =>
-      PaymentConfirmationBloc(repository, processor, scanMinDuration: testScanDuration);
+  PaymentConfirmationBloc buildBloc() => PaymentConfirmationBloc(
+    repository,
+    processor,
+    scanMinDuration: testScanDuration,
+  );
 
   group('Started — cold entry', () {
     blocTest<PaymentConfirmationBloc, PaymentConfirmationState>(
@@ -63,9 +69,7 @@ void main() {
         return buildBloc();
       },
       act: (bloc) => bloc.add(const Started()),
-      expect: () => [
-        const PaymentConfirmationState(phase: Processing(40)),
-      ],
+      expect: () => [const PaymentConfirmationState(phase: Processing(40))],
     );
 
     blocTest<PaymentConfirmationBloc, PaymentConfirmationState>(
@@ -83,12 +87,16 @@ void main() {
     blocTest<PaymentConfirmationBloc, PaymentConfirmationState>(
       'in-flight job already failed: goes straight to Completed',
       build: () {
-        processor.inFlightStream = Stream.value(const Failed(PaymentFailure.declined));
+        processor.inFlightStream = Stream.value(
+          const Failed(PaymentFailure.declined),
+        );
         return buildBloc();
       },
       act: (bloc) => bloc.add(const Started()),
       expect: () => [
-        const PaymentConfirmationState(phase: Completed(Failed(PaymentFailure.declined))),
+        const PaymentConfirmationState(
+          phase: Completed(Failed(PaymentFailure.declined)),
+        ),
       ],
     );
   });
@@ -107,10 +115,16 @@ void main() {
     blocTest<PaymentConfirmationBloc, PaymentConfirmationState>(
       'ScanTimerElapsed moves to AwaitingConfirmation',
       build: buildBloc,
-      seed: () => const PaymentConfirmationState(payment: testPayment, phase: Scanning()),
+      seed: () => const PaymentConfirmationState(
+        payment: testPayment,
+        phase: Scanning(),
+      ),
       act: (bloc) => bloc.add(const ScanTimerElapsed()),
       expect: () => [
-        const PaymentConfirmationState(payment: testPayment, phase: AwaitingConfirmation()),
+        const PaymentConfirmationState(
+          payment: testPayment,
+          phase: AwaitingConfirmation(),
+        ),
       ],
     );
   });
@@ -122,17 +136,26 @@ void main() {
       seed: () => const PaymentConfirmationState(phase: AwaitingConfirmation()),
       act: (bloc) => bloc.add(const PaymentLoaded(testPayment)),
       expect: () => [
-        const PaymentConfirmationState(payment: testPayment, phase: AwaitingConfirmation()),
+        const PaymentConfirmationState(
+          payment: testPayment,
+          phase: AwaitingConfirmation(),
+        ),
       ],
     );
 
     blocTest<PaymentConfirmationBloc, PaymentConfirmationState>(
       'PayPressed with an unblocked verdict and a loaded payment starts the job',
       build: buildBloc,
-      seed: () => const PaymentConfirmationState(payment: testPayment, phase: AwaitingConfirmation()),
+      seed: () => const PaymentConfirmationState(
+        payment: testPayment,
+        phase: AwaitingConfirmation(),
+      ),
       act: (bloc) => bloc.add(const PayPressed(unblockedVerdict)),
       expect: () => [
-        const PaymentConfirmationState(payment: testPayment, phase: Processing(0)),
+        const PaymentConfirmationState(
+          payment: testPayment,
+          phase: Processing(0),
+        ),
       ],
       verify: (_) {
         expect(processor.startCallCount, 1);
@@ -143,7 +166,10 @@ void main() {
     blocTest<PaymentConfirmationBloc, PaymentConfirmationState>(
       'PayPressed with a blocked verdict is ignored',
       build: buildBloc,
-      seed: () => const PaymentConfirmationState(payment: testPayment, phase: AwaitingConfirmation()),
+      seed: () => const PaymentConfirmationState(
+        payment: testPayment,
+        phase: AwaitingConfirmation(),
+      ),
       act: (bloc) => bloc.add(const PayPressed(blockedVerdict)),
       expect: () => <PaymentConfirmationState>[],
       verify: (_) => expect(processor.startCallCount, 0),
@@ -163,28 +189,44 @@ void main() {
     blocTest<PaymentConfirmationBloc, PaymentConfirmationState>(
       'JobProgressed(Running) updates the percent',
       build: buildBloc,
-      seed: () => const PaymentConfirmationState(payment: testPayment, phase: Processing(0)),
+      seed: () => const PaymentConfirmationState(
+        payment: testPayment,
+        phase: Processing(0),
+      ),
       act: (bloc) => bloc.add(const JobProgressed(Running(55))),
       expect: () => [
-        const PaymentConfirmationState(payment: testPayment, phase: Processing(55)),
+        const PaymentConfirmationState(
+          payment: testPayment,
+          phase: Processing(55),
+        ),
       ],
     );
 
     blocTest<PaymentConfirmationBloc, PaymentConfirmationState>(
       'JobProgressed(Succeeded) moves to Completed',
       build: buildBloc,
-      seed: () => const PaymentConfirmationState(payment: testPayment, phase: Processing(90)),
+      seed: () => const PaymentConfirmationState(
+        payment: testPayment,
+        phase: Processing(90),
+      ),
       act: (bloc) => bloc.add(JobProgressed(Succeeded(testReceipt))),
       expect: () => [
-        PaymentConfirmationState(payment: testPayment, phase: Completed(Succeeded(testReceipt))),
+        PaymentConfirmationState(
+          payment: testPayment,
+          phase: Completed(Succeeded(testReceipt)),
+        ),
       ],
     );
 
     blocTest<PaymentConfirmationBloc, PaymentConfirmationState>(
       'JobProgressed(Failed) moves to Completed',
       build: buildBloc,
-      seed: () => const PaymentConfirmationState(payment: testPayment, phase: Processing(60)),
-      act: (bloc) => bloc.add(const JobProgressed(Failed(PaymentFailure.declined))),
+      seed: () => const PaymentConfirmationState(
+        payment: testPayment,
+        phase: Processing(60),
+      ),
+      act: (bloc) =>
+          bloc.add(const JobProgressed(Failed(PaymentFailure.declined))),
       expect: () => [
         const PaymentConfirmationState(
           payment: testPayment,
@@ -196,7 +238,10 @@ void main() {
     blocTest<PaymentConfirmationBloc, PaymentConfirmationState>(
       'PayPressed while Processing is ignored (double-tap, or "back")',
       build: buildBloc,
-      seed: () => const PaymentConfirmationState(payment: testPayment, phase: Processing(40)),
+      seed: () => const PaymentConfirmationState(
+        payment: testPayment,
+        phase: Processing(40),
+      ),
       act: (bloc) => bloc.add(const PayPressed(unblockedVerdict)),
       expect: () => <PaymentConfirmationState>[],
       verify: (_) => expect(processor.startCallCount, 0),
@@ -205,13 +250,19 @@ void main() {
     blocTest<PaymentConfirmationBloc, PaymentConfirmationState>(
       'processor.start() throwing moves Processing straight to Completed(Failed(serviceUnavailable))',
       build: buildBloc,
-      seed: () => const PaymentConfirmationState(payment: testPayment, phase: AwaitingConfirmation()),
+      seed: () => const PaymentConfirmationState(
+        payment: testPayment,
+        phase: AwaitingConfirmation(),
+      ),
       act: (bloc) {
         processor.startError = const ServiceException('no Activity attached');
         bloc.add(const PayPressed(unblockedVerdict));
       },
       expect: () => [
-        const PaymentConfirmationState(payment: testPayment, phase: Processing(0)),
+        const PaymentConfirmationState(
+          payment: testPayment,
+          phase: Processing(0),
+        ),
         const PaymentConfirmationState(
           payment: testPayment,
           phase: Completed(Failed(PaymentFailure.serviceUnavailable)),
@@ -230,7 +281,10 @@ void main() {
       ),
       act: (bloc) => bloc.add(const RetryPressed()),
       expect: () => [
-        const PaymentConfirmationState(payment: testPayment, phase: AwaitingConfirmation()),
+        const PaymentConfirmationState(
+          payment: testPayment,
+          phase: AwaitingConfirmation(),
+        ),
       ],
     );
 
@@ -249,7 +303,8 @@ void main() {
   group('wiring', () {
     blocTest<PaymentConfirmationBloc, PaymentConfirmationState>(
       'the scan timer really fires after scanMinDuration, not just as a reducer',
-      build: buildBloc, // repository never completes — isolates the timer from PaymentLoaded
+      build:
+          buildBloc, // repository never completes — isolates the timer from PaymentLoaded
       act: (bloc) => bloc.add(const Started()),
       wait: testScanDuration * 3,
       expect: () => [
@@ -295,87 +350,80 @@ void main() {
     },
   );
 
-  test(
-    'close() while Started is still suspended on a null-resolving processor.inFlight() '
-    'does not throw',
-    () async {
-      // The sibling of the "in-flight processor.inFlight()" test below, but for the *common*
-      // case: no job in flight, inFlight() resolves to null. Without the isClosed guard right
-      // after `await _processor.inFlight()`, execution would fall through past close() to create
-      // _scanTimer — a Timer close() never gets the chance to cancel, since it's assigned after
-      // close() already ran. When that orphaned Timer later fires, it calls
-      // add(const ScanTimerElapsed()) on the already-closed bloc and throws
-      // "Bad state: Cannot add new events after calling close". holdInFlight()/releaseInFlight()
-      // give this a genuine, Completer-backed suspension point on inFlight() — mirroring
-      // FakePaymentRepository's completeWith() — so the race is deterministic rather than
-      // hoping to beat a fast microtask.
-      processor.holdInFlight();
-      final bloc = buildBloc();
+  test('close() while Started is still suspended on a null-resolving processor.inFlight() '
+      'does not throw', () async {
+    // The sibling of the "in-flight processor.inFlight()" test below, but for the *common*
+    // case: no job in flight, inFlight() resolves to null. Without the isClosed guard right
+    // after `await _processor.inFlight()`, execution would fall through past close() to create
+    // _scanTimer — a Timer close() never gets the chance to cancel, since it's assigned after
+    // close() already ran. When that orphaned Timer later fires, it calls
+    // add(const ScanTimerElapsed()) on the already-closed bloc and throws
+    // "Bad state: Cannot add new events after calling close". holdInFlight()/releaseInFlight()
+    // give this a genuine, Completer-backed suspension point on inFlight() — mirroring
+    // FakePaymentRepository's completeWith() — so the race is deterministic rather than
+    // hoping to beat a fast microtask.
+    processor.holdInFlight();
+    final bloc = buildBloc();
 
-      bloc.add(const Started());
-      await Future<void>.delayed(Duration.zero); // let the handler reach and suspend on inFlight()
-      await bloc.close();
+    bloc.add(const Started());
+    await Future<void>.delayed(
+      Duration.zero,
+    ); // let the handler reach and suspend on inFlight()
+    await bloc.close();
 
-      // Resolving inFlight() now (to null, the no-job-in-flight case) must not throw, and must
-      // not leave a live _scanTimer behind to fire later and call add() on the closed bloc.
-      processor.releaseInFlight(null);
-      await Future<void>.delayed(testScanDuration * 3);
-    },
-  );
+    // Resolving inFlight() now (to null, the no-job-in-flight case) must not throw, and must
+    // not leave a live _scanTimer behind to fire later and call add() on the closed bloc.
+    processor.releaseInFlight(null);
+    await Future<void>.delayed(testScanDuration * 3);
+  });
 
-  test(
-    'close() while Started is still suspended on an in-flight processor.inFlight() '
-    'does not throw or leak a subscription',
-    () async {
-      // A never-completing Completer-backed stream stands in for a job that's still running —
-      // start() on it is never called, so hasActiveListener below tracks whether _listenToJob
-      // ever subscribed to it after close().
-      final inFlightController = StreamController<PaymentJobProgress>.broadcast();
-      processor.inFlightStream = inFlightController.stream;
-      final bloc = buildBloc();
+  test('close() while Started is still suspended on an in-flight processor.inFlight() '
+      'does not throw or leak a subscription', () async {
+    // A never-completing Completer-backed stream stands in for a job that's still running —
+    // start() on it is never called, so hasActiveListener below tracks whether _listenToJob
+    // ever subscribed to it after close().
+    final inFlightController = StreamController<PaymentJobProgress>.broadcast();
+    processor.inFlightStream = inFlightController.stream;
+    final bloc = buildBloc();
 
-      bloc.add(const Started());
-      await bloc.close();
-      // Flush whatever microtasks the still-suspended handler needed to resume and (before the
-      // fix) reach `_jobSubscription = stream.listen(...)` past close().
-      await Future<void>.delayed(Duration.zero);
+    bloc.add(const Started());
+    await bloc.close();
+    // Flush whatever microtasks the still-suspended handler needed to resume and (before the
+    // fix) reach `_jobSubscription = stream.listen(...)` past close().
+    await Future<void>.delayed(Duration.zero);
 
-      expect(inFlightController.hasListener, isFalse);
-      await inFlightController.close();
-    },
-  );
+    expect(inFlightController.hasListener, isFalse);
+    await inFlightController.close();
+  });
 
-  test(
-    "close() fired immediately after PayPressed doesn't throw or leak a subscription "
-    "(approximates the race on _onPayPressed's job-subscribe path)",
-    () async {
-      // The guard this exercises lives inside _listenToJob, at `await _jobSubscription?.cancel()`
-      // — the one suspension point on _onPayPressed's path (start() itself is synchronous; even
-      // with no prior subscription, `await null` still yields one microtask before _listenToJob
-      // continues to `stream.listen(...)`). Landing close() deterministically inside that single
-      // microtask gap would need clock-control machinery this codebase doesn't otherwise use
-      // (fake_async's FakeAsync, or a controllable Completer-backed onCancel on the fake
-      // processor's StreamController). Short of that, firing close() back-to-back with the
-      // triggering event — no await in between — is the closest deterministic approximation
-      // available: it maximizes the chance the handler is still mid-_listenToJob when close()
-      // runs. Whether or not that exact interleaving is hit on a given run, the assertion below
-      // must hold either way — that's what the isClosed guard (and close()'s own
-      // unawaited(_jobSubscription?.cancel())) is for — so this is a real regression net for
-      // that call site even though it cannot force the race on demand.
-      repository.completeWith(testPayment);
-      final bloc = buildBloc();
-      bloc.add(const Started());
-      await Future<void>.delayed(Duration.zero);
-      bloc.add(const ScanTimerElapsed());
-      await Future<void>.delayed(Duration.zero);
-      // Now in AwaitingConfirmation with a loaded payment.
+  test("close() fired immediately after PayPressed doesn't throw or leak a subscription "
+      "(approximates the race on _onPayPressed's job-subscribe path)", () async {
+    // The guard this exercises lives inside _listenToJob, at `await _jobSubscription?.cancel()`
+    // — the one suspension point on _onPayPressed's path (start() itself is synchronous; even
+    // with no prior subscription, `await null` still yields one microtask before _listenToJob
+    // continues to `stream.listen(...)`). Landing close() deterministically inside that single
+    // microtask gap would need clock-control machinery this codebase doesn't otherwise use
+    // (fake_async's FakeAsync, or a controllable Completer-backed onCancel on the fake
+    // processor's StreamController). Short of that, firing close() back-to-back with the
+    // triggering event — no await in between — is the closest deterministic approximation
+    // available: it maximizes the chance the handler is still mid-_listenToJob when close()
+    // runs. Whether or not that exact interleaving is hit on a given run, the assertion below
+    // must hold either way — that's what the isClosed guard (and close()'s own
+    // unawaited(_jobSubscription?.cancel())) is for — so this is a real regression net for
+    // that call site even though it cannot force the race on demand.
+    repository.completeWith(testPayment);
+    final bloc = buildBloc();
+    bloc.add(const Started());
+    await Future<void>.delayed(Duration.zero);
+    bloc.add(const ScanTimerElapsed());
+    await Future<void>.delayed(Duration.zero);
+    // Now in AwaitingConfirmation with a loaded payment.
 
-      bloc.add(const PayPressed(unblockedVerdict));
-      await bloc.close(); // no await between add() and close()
+    bloc.add(const PayPressed(unblockedVerdict));
+    await bloc.close(); // no await between add() and close()
 
-      await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(Duration.zero);
 
-      expect(processor.hasActiveListener, isFalse);
-    },
-  );
+    expect(processor.hasActiveListener, isFalse);
+  });
 }

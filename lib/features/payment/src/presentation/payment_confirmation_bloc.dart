@@ -39,7 +39,9 @@ class PaymentConfirmationBloc
     Emitter<PaymentConfirmationState> emit,
   ) async {
     final inFlight = await _processor.inFlight();
-    if (isClosed) return; // bloc closed while suspended on inFlight() — don't touch it further
+    if (isClosed) {
+      return; // bloc closed while suspended on inFlight() — don't touch it further
+    }
     if (inFlight != null) {
       await _listenToJob(inFlight);
       return;
@@ -49,7 +51,9 @@ class PaymentConfirmationBloc
     // adapter this seam has today, cannot fail to load — so it's left to the bloc's default
     // error handling rather than given speculative handling here.
     final payment = await _repository.load();
-    if (isClosed) return; // bloc closed while suspended on load() — add() would throw
+    if (isClosed) {
+      return; // bloc closed while suspended on load() — add() would throw
+    }
     add(PaymentLoaded(payment));
   }
 
@@ -118,7 +122,9 @@ class PaymentConfirmationBloc
     // _onPayPressed): if close() ran while we were suspended on the cancel() above, don't create
     // a new subscription that would outlive close() and call add() on a closed bloc.
     if (isClosed) return;
-    _jobSubscription = stream.listen((progress) => add(JobProgressed(progress)));
+    _jobSubscription = stream.listen(
+      (progress) => add(JobProgressed(progress)),
+    );
   }
 
   @override

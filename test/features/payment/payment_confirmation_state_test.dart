@@ -34,7 +34,10 @@ void main() {
         payee: 'Acme',
         lineItems: [],
       );
-      const state = PaymentConfirmationState(payment: payment, phase: Scanning());
+      const state = PaymentConfirmationState(
+        payment: payment,
+        phase: Scanning(),
+      );
       final next = state.copyWith(phase: const AwaitingConfirmation());
       expect(next.payment, payment);
       expect(next.phase, isA<AwaitingConfirmation>());

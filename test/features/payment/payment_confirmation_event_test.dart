@@ -21,12 +21,18 @@ void main() {
   });
 
   test('two JobProgressed events with the same progress are equal', () {
-    expect(const JobProgressed(Running(10)), equals(const JobProgressed(Running(10))));
+    expect(
+      const JobProgressed(Running(10)),
+      equals(const JobProgressed(Running(10))),
+    );
   });
 
-  test('Started, RetryPressed, and ScanTimerElapsed are each equal to themselves', () {
-    expect(const Started(), equals(const Started()));
-    expect(const RetryPressed(), equals(const RetryPressed()));
-    expect(const ScanTimerElapsed(), equals(const ScanTimerElapsed()));
-  });
+  test(
+    'Started, RetryPressed, and ScanTimerElapsed are each equal to themselves',
+    () {
+      expect(const Started(), equals(const Started()));
+      expect(const RetryPressed(), equals(const RetryPressed()));
+      expect(const ScanTimerElapsed(), equals(const ScanTimerElapsed()));
+    },
+  );
 }

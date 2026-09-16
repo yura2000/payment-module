@@ -42,7 +42,8 @@ class FakePaymentProcessor implements PaymentProcessor {
 
   /// Switches `inFlight()` into "held" mode: the next call won't resolve until
   /// [releaseInFlight] is called, instead of resolving promptly from [inFlightStream].
-  void holdInFlight() => _heldInFlight = Completer<Stream<PaymentJobProgress>?>();
+  void holdInFlight() =>
+      _heldInFlight = Completer<Stream<PaymentJobProgress>?>();
 
   /// Resolves a call to `inFlight()` made while held, with [value].
   void releaseInFlight(Stream<PaymentJobProgress>? value) =>
