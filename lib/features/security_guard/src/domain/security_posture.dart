@@ -32,10 +32,12 @@ class SecurityPosture extends Equatable {
   /// Secure — every check clear. Compromised — any Threat detected. Unverified — none detected,
   /// but at least one check could not run.
   SecurityClassification get classification {
-    if (assessments.any((a) => a.result is Detected))
+    if (assessments.any((a) => a.result is Detected)) {
       return SecurityClassification.compromised;
-    if (assessments.any((a) => a.result is Unavailable))
+    }
+    if (assessments.any((a) => a.result is Unavailable)) {
       return SecurityClassification.unverified;
+    }
     return SecurityClassification.secure;
   }
 
