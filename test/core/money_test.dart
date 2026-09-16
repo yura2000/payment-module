@@ -9,11 +9,14 @@ void main() {
       expect(a, equals(b));
     });
 
-    test('adding two Money values in the same currency sums the minor units', () {
-      const a = Money(amountMinor: 1000, currency: 'EUR');
-      const b = Money(amountMinor: 250, currency: 'EUR');
-      expect(a + b, equals(const Money(amountMinor: 1250, currency: 'EUR')));
-    });
+    test(
+      'adding two Money values in the same currency sums the minor units',
+      () {
+        const a = Money(amountMinor: 1000, currency: 'EUR');
+        const b = Money(amountMinor: 250, currency: 'EUR');
+        expect(a + b, equals(const Money(amountMinor: 1250, currency: 'EUR')));
+      },
+    );
 
     test('adding Money values in different currencies asserts', () {
       const a = Money(amountMinor: 1000, currency: 'EUR');

@@ -9,12 +9,15 @@ import_lint:
     core_is_flutter_free:
       target: "package:payment_module/core/**.dart"
       from: "package:flutter/**.dart"
+      except: []
     core_depends_on_nothing:
       target: "package:payment_module/core/**.dart"
       from: "package:payment_module/{brand_engine,features,app,brands,bootstrap}/**.dart"
+      except: []
     engine_knows_no_features:
       target: "package:payment_module/brand_engine/**.dart"
       from: "package:payment_module/{features,app,brands,bootstrap}/**.dart"
+      except: []
 
 linter:
   rules:

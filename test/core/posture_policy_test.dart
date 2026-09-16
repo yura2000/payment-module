@@ -3,21 +3,27 @@ import 'package:payment_module/core/threat.dart';
 
 void main() {
   group('PosturePolicy', () {
-    test('constructs when every ThreatKind has both a detected and unavailable response', () {
-      final policy = PosturePolicy(
-        onDetected: {
-          ThreatKind.rooted: DetectedResponse.block,
-          ThreatKind.screenRecording: DetectedResponse.warn,
-        },
-        onUnavailable: {
-          ThreatKind.rooted: UnavailableResponse.allow,
-          ThreatKind.screenRecording: UnavailableResponse.notice,
-        },
-      );
+    test(
+      'constructs when every ThreatKind has both a detected and unavailable response',
+      () {
+        final policy = PosturePolicy(
+          onDetected: {
+            ThreatKind.rooted: DetectedResponse.block,
+            ThreatKind.screenRecording: DetectedResponse.warn,
+          },
+          onUnavailable: {
+            ThreatKind.rooted: UnavailableResponse.allow,
+            ThreatKind.screenRecording: UnavailableResponse.notice,
+          },
+        );
 
-      expect(policy.onDetected[ThreatKind.rooted], DetectedResponse.block);
-      expect(policy.onUnavailable[ThreatKind.screenRecording], UnavailableResponse.notice);
-    });
+        expect(policy.onDetected[ThreatKind.rooted], DetectedResponse.block);
+        expect(
+          policy.onUnavailable[ThreatKind.screenRecording],
+          UnavailableResponse.notice,
+        );
+      },
+    );
 
     test('asserts when a ThreatKind is missing from onDetected', () {
       expect(

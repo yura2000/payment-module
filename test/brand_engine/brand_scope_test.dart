@@ -18,19 +18,22 @@ void main() {
     features: const [],
   );
 
-  testWidgets('BrandScope.of returns the brand passed to the nearest ancestor scope', (tester) async {
-    late BrandConfig read;
-    await tester.pumpWidget(
-      BrandScope(
-        brand: brand,
-        child: Builder(
-          builder: (context) {
-            read = BrandScope.of(context);
-            return const SizedBox.shrink();
-          },
+  testWidgets(
+    'BrandScope.of returns the brand passed to the nearest ancestor scope',
+    (tester) async {
+      late BrandConfig read;
+      await tester.pumpWidget(
+        BrandScope(
+          brand: brand,
+          child: Builder(
+            builder: (context) {
+              read = BrandScope.of(context);
+              return const SizedBox.shrink();
+            },
+          ),
         ),
-      ),
-    );
-    expect(read, same(brand));
-  });
+      );
+      expect(read, same(brand));
+    },
+  );
 }

@@ -28,7 +28,9 @@ void main() {
     expect(theme.visualDensity, VisualDensity.compact);
   });
 
-  testWidgets('context.tokens reads the BrandTokens from the nearest Theme', (tester) async {
+  testWidgets('context.tokens reads the BrandTokens from the nearest Theme', (
+    tester,
+  ) async {
     late BrandTokens read;
     await tester.pumpWidget(
       MaterialApp(

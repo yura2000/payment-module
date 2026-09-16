@@ -14,11 +14,17 @@ class PosturePolicy {
   PosturePolicy({
     required Map<ThreatKind, DetectedResponse> onDetected,
     required Map<ThreatKind, UnavailableResponse> onUnavailable,
-  })  : onDetected = Map.unmodifiable(onDetected),
-        onUnavailable = Map.unmodifiable(onUnavailable) {
+  }) : onDetected = Map.unmodifiable(onDetected),
+       onUnavailable = Map.unmodifiable(onUnavailable) {
     for (final kind in ThreatKind.values) {
-      assert(onDetected.containsKey(kind), 'PosturePolicy.onDetected is missing $kind');
-      assert(onUnavailable.containsKey(kind), 'PosturePolicy.onUnavailable is missing $kind');
+      assert(
+        onDetected.containsKey(kind),
+        'PosturePolicy.onDetected is missing $kind',
+      );
+      assert(
+        onUnavailable.containsKey(kind),
+        'PosturePolicy.onUnavailable is missing $kind',
+      );
     }
   }
 

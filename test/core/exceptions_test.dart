@@ -13,9 +13,12 @@ void main() {
     expect(e.toString(), 'ClientException: job already running');
   });
 
-  test('TransportException is distinct from ServiceException and ClientException', () {
-    const e = TransportException('malformed payload');
-    expect(e, isNot(isA<ServiceException>()));
-    expect(e, isNot(isA<ClientException>()));
-  });
+  test(
+    'TransportException is distinct from ServiceException and ClientException',
+    () {
+      const e = TransportException('malformed payload');
+      expect(e, isNot(isA<ServiceException>()));
+      expect(e, isNot(isA<ClientException>()));
+    },
+  );
 }

@@ -7,13 +7,21 @@ class Money {
   final String currency;
 
   Money operator +(Money other) {
-    assert(currency == other.currency, 'Cannot add $currency to ${other.currency}');
-    return Money(amountMinor: amountMinor + other.amountMinor, currency: currency);
+    assert(
+      currency == other.currency,
+      'Cannot add $currency to ${other.currency}',
+    );
+    return Money(
+      amountMinor: amountMinor + other.amountMinor,
+      currency: currency,
+    );
   }
 
   @override
   bool operator ==(Object other) =>
-      other is Money && other.amountMinor == amountMinor && other.currency == currency;
+      other is Money &&
+      other.amountMinor == amountMinor &&
+      other.currency == currency;
 
   @override
   int get hashCode => Object.hash(amountMinor, currency);
