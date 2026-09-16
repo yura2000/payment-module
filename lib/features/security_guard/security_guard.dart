@@ -6,5 +6,6 @@ export 'src/domain/security_posture.dart';
 export 'src/domain/threat_assessment.dart';
 export 'src/domain/watch_posture_verdict.dart';
 export 'src/presentation/posture_state.dart';
+export 'src/presentation/secure_session_scope.dart';
 export 'src/presentation/secure_window_controller.dart';
 export 'src/presentation/security_posture_cubit.dart';
