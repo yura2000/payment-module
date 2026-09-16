@@ -1,0 +1,21 @@
+include: package:flutter_lints/flutter.yaml
+
+plugins:
+  import_lint: ^2.0.0
+
+import_lint:
+  severity: error
+  rules:
+    core_is_flutter_free:
+      target: "package:payment_module/core/**.dart"
+      from: "package:flutter/**.dart"
+    core_depends_on_nothing:
+      target: "package:payment_module/core/**.dart"
+      from: "package:payment_module/{brand_engine,features,app,brands,bootstrap}/**.dart"
+    engine_knows_no_features:
+      target: "package:payment_module/brand_engine/**.dart"
+      from: "package:payment_module/{features,app,brands,bootstrap}/**.dart"
+
+linter:
+  rules:
+    prefer_single_quotes: true
