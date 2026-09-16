@@ -18,6 +18,30 @@ import_lint:
       target: "package:payment_module/brand_engine/**.dart"
       from: "package:payment_module/{features,app,brands,bootstrap}/**.dart"
       except: []
+    domain_no_data:
+      target: "package:payment_module/features/*/src/domain/**.dart"
+      from: "package:payment_module/features/*/src/data/**.dart"
+      except: []
+    domain_no_presentation:
+      target: "package:payment_module/features/*/src/domain/**.dart"
+      from: "package:payment_module/features/*/src/presentation/**.dart"
+      except: []
+    domain_no_flutter:
+      target: "package:payment_module/features/*/src/domain/**.dart"
+      from: "package:flutter/**.dart"
+      except: []
+    presentation_no_data:
+      target: "package:payment_module/features/*/src/presentation/**.dart"
+      from: "package:payment_module/features/*/src/data/**.dart"
+      except: []
+    security_guard_via_barrel:
+      target: "package:payment_module/features/payment/**.dart"
+      from: "package:payment_module/features/security_guard/src/**.dart"
+      except: []
+    no_reverse_dependency:
+      target: "package:payment_module/features/security_guard/**.dart"
+      from: "package:payment_module/features/payment/**.dart"
+      except: []
 
 linter:
   rules:
