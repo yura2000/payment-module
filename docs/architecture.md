@@ -91,17 +91,33 @@ are in `docs/research/pub-workspace-flutter.md`).
 
 ### 3.2 Mechanics
 
-A standard Flutter application: `fvm flutter pub get` once; `flutter run / build apk / test / analyze` from the root; the IDE
-needs nothing special. `pubspec.lock` is committed (application). The `Makefile` exists only for the flavor + dart-define
-pairing (§15), not to work around tooling.
+A standard Flutter application: `fvm flutter pub get` once; `flutter run / build apk / test` from the root; the IDE needs
+nothing special. `pubspec.lock` is committed (application). The `Makefile` exists only for the flavor + dart-define pairing
+(§15), not to work around tooling. **`flutter analyze` is not the lint command** — see §3.3.
 
 ### 3.3 Boundaries: layers inside a feature, walls between modules
 
-Both are the same mechanism: **`import_lint` 2.0.0** (first-party analyzer-plugin system, Dart ≥ 3.10) with path globs,
-verified at scaffold time with one deliberately violating file per rule; plus `test/architecture_test.dart`, which walks
-`lib/**` and regex-checks `import` lines against the same rules so CI enforces the policy even if the plugin misbehaves
-(`custom_lint` rides the deprecated legacy plugin system; DCM is a paid separate binary). The glob dialect (`*`, `{a,b}`)
-is unverified — the first scaffold run settles it.
+Both are the same mechanism: **`import_lint` 2.0.0** (first-party analyzer-plugin system, Dart ≥ 3.10) with path globs;
+plus `test/architecture_test.dart`, which walks `lib/**` and regex-checks `import` lines against the same rules so CI
+enforces the policy even if the plugin misbehaves (`custom_lint` rides the deprecated legacy plugin system; DCM is a paid
+separate binary).
+
+**Verified at scaffold time** (docs/verification/2026-09-16-lint-rules-smoke-test.md), three findings not in the original
+research:
+
+1. **The lint command is `dart analyze`, never `flutter analyze`.** `flutter analyze` runs Dart's LSP-mode
+   `dart language-server`, which does not implement the analyzer-plugin protocol `import_lint` needs; it reports
+   `No issues found!` even when a rule is violated. Plain `dart analyze` uses the classic `analysis_server` and correctly
+   surfaces `import_lint` diagnostics. Every command in this document that needs the lint to actually run — `make analyze`
+   (§15), CI — means `dart analyze`, not `flutter analyze`.
+2. **Every rule needs an explicit `except: []`.** Without it, `import_lint`'s `Rule.fromMap` throws while parsing
+   `analysis_options.yaml`; under `flutter analyze`'s LSP path that failure is silently swallowed (reports clean), which
+   is how (1) above was masked for several tasks before being caught. The config below includes it.
+3. **A configured `severity: error` still prints as `info`, and plain `dart analyze` exits 0 on an info-only diagnostic.**
+   CI must run **`dart analyze --fatal-infos`** to actually fail the build on a boundary violation — confirmed: exit 0
+   without the flag, exit 1 with it, for the identical lone diagnostic.
+
+The glob dialect (`*`, `{a,b}`) is confirmed working (verification doc).
 
 ```yaml
 # analysis_options.yaml
@@ -110,17 +126,17 @@ plugins:
 import_lint:
   severity: error
   rules:
-    # layers — every feature at once
-    domain_no_data:            { target: "package:payment_module/features/*/src/domain/**.dart",       from: "package:payment_module/features/*/src/data/**.dart" }
-    domain_no_presentation:    { target: "package:payment_module/features/*/src/domain/**.dart",       from: "package:payment_module/features/*/src/presentation/**.dart" }
-    domain_no_flutter:         { target: "package:payment_module/features/*/src/domain/**.dart",       from: "package:flutter/**.dart" }
-    presentation_no_data:      { target: "package:payment_module/features/*/src/presentation/**.dart", from: "package:payment_module/features/*/src/data/**.dart" }
+    # layers — every feature at once (except: [] is required on every rule — see above)
+    domain_no_data:            { target: "package:payment_module/features/*/src/domain/**.dart",       from: "package:payment_module/features/*/src/data/**.dart",       except: [] }
+    domain_no_presentation:    { target: "package:payment_module/features/*/src/domain/**.dart",       from: "package:payment_module/features/*/src/presentation/**.dart", except: [] }
+    domain_no_flutter:         { target: "package:payment_module/features/*/src/domain/**.dart",       from: "package:flutter/**.dart",                                    except: [] }
+    presentation_no_data:      { target: "package:payment_module/features/*/src/presentation/**.dart", from: "package:payment_module/features/*/src/data/**.dart",       except: [] }
     # module walls
-    core_is_flutter_free:      { target: "package:payment_module/core/**.dart",         from: "package:flutter/**.dart" }
-    core_depends_on_nothing:   { target: "package:payment_module/core/**.dart",         from: "package:payment_module/{brand_engine,features,app,brands,bootstrap}/**.dart" }
-    engine_knows_no_features:  { target: "package:payment_module/brand_engine/**.dart", from: "package:payment_module/{features,app,brands,bootstrap}/**.dart" }
-    security_guard_via_barrel: { target: "package:payment_module/features/payment/**.dart",        from: "package:payment_module/features/security_guard/src/**.dart" }
-    no_reverse_dependency:     { target: "package:payment_module/features/security_guard/**.dart", from: "package:payment_module/features/payment/**.dart" }
+    core_is_flutter_free:      { target: "package:payment_module/core/**.dart",         from: "package:flutter/**.dart",                                             except: [] }
+    core_depends_on_nothing:   { target: "package:payment_module/core/**.dart",         from: "package:payment_module/{brand_engine,features,app,brands,bootstrap}/**.dart", except: [] }
+    engine_knows_no_features:  { target: "package:payment_module/brand_engine/**.dart", from: "package:payment_module/{features,app,brands,bootstrap}/**.dart",             except: [] }
+    security_guard_via_barrel: { target: "package:payment_module/features/payment/**.dart",        from: "package:payment_module/features/security_guard/src/**.dart", except: [] }
+    no_reverse_dependency:     { target: "package:payment_module/features/security_guard/**.dart", from: "package:payment_module/features/payment/**.dart",           except: [] }
 ```
 
 ## 4. Module interfaces
@@ -608,7 +624,8 @@ make run BRAND=retail          # fvm flutter run  --flavor retail  --dart-define
 make apk BRAND=utility         # fvm flutter build apk --flavor utility --dart-define=BRAND=utility
 make test                      # fvm flutter test  (architecture test included; goldens excluded)
 make goldens                   # fvm flutter test --tags golden --update-goldens
-make analyze · make format
+make analyze                    # dart analyze --fatal-infos  (NOT flutter analyze — see §3.3)
+make format
 ```
 
 Debug builds assert `buildInfo().flavor == BRAND` at startup. **Demo guidance**: for the Secure path use a *Google Play* AVD
@@ -651,8 +668,8 @@ grilling that produced it.
 - The claim that `FLAG_SECURE` does not suppress `addScreenRecordingCallback` is verified from AOSP source, not prose docs —
   spike it on a real API 35+ device before relying on it for the demo.
 - OEM power modes and user caps can hold the app at 60 Hz regardless of the nudge; measure, don't assume.
-- `import_lint` (and its glob dialect) is an unexecuted finding — on the scaffold's smoke-test list (§3.3), together with
-  `flutter build apk --flavor retail|utility`.
+- `import_lint` is verified working (§3.3), but only via `dart analyze --fatal-infos` — `flutter analyze` silently never
+  runs it. `flutter build apk --flavor retail|utility` remains on the scaffold's smoke-test list.
 - Goldens are platform-sensitive: run under the `golden` tag on Linux CI.
 - `onTimeout` overloads differ between API 34 and 35 — override the one-arg form and verify delegation.
 - Emulator host-side recording of a `FLAG_SECURE` window is unverified.
