@@ -296,6 +296,34 @@ void main() {
   );
 
   test(
+    'close() while Started is still suspended on a null-resolving processor.inFlight() '
+    'does not throw',
+    () async {
+      // The sibling of the "in-flight processor.inFlight()" test below, but for the *common*
+      // case: no job in flight, inFlight() resolves to null. Without the isClosed guard right
+      // after `await _processor.inFlight()`, execution would fall through past close() to create
+      // _scanTimer — a Timer close() never gets the chance to cancel, since it's assigned after
+      // close() already ran. When that orphaned Timer later fires, it calls
+      // add(const ScanTimerElapsed()) on the already-closed bloc and throws
+      // "Bad state: Cannot add new events after calling close". holdInFlight()/releaseInFlight()
+      // give this a genuine, Completer-backed suspension point on inFlight() — mirroring
+      // FakePaymentRepository's completeWith() — so the race is deterministic rather than
+      // hoping to beat a fast microtask.
+      processor.holdInFlight();
+      final bloc = buildBloc();
+
+      bloc.add(const Started());
+      await Future<void>.delayed(Duration.zero); // let the handler reach and suspend on inFlight()
+      await bloc.close();
+
+      // Resolving inFlight() now (to null, the no-job-in-flight case) must not throw, and must
+      // not leave a live _scanTimer behind to fire later and call add() on the closed bloc.
+      processor.releaseInFlight(null);
+      await Future<void>.delayed(testScanDuration * 3);
+    },
+  );
+
+  test(
     'close() while Started is still suspended on an in-flight processor.inFlight() '
     'does not throw or leak a subscription',
     () async {
