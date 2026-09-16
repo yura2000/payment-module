@@ -24,4 +24,22 @@ void main() {
       expect(getIt<SecureWindow>(), same(window));
     },
   );
+
+  test(
+    'registers one SecureWindowController, over the registered SecureWindow',
+    () async {
+      final window = FakeSecureWindow();
+      registerSecurityModule(
+        getIt,
+        environment: FakeSecurityEnvironment(),
+        window: window,
+      );
+
+      final controller = getIt<SecureWindowController>();
+      await controller.acquire();
+
+      expect(getIt<SecureWindowController>(), same(controller));
+      expect(window.calls, [true]);
+    },
+  );
 }
