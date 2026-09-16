@@ -316,4 +316,38 @@ void main() {
       await inFlightController.close();
     },
   );
+
+  test(
+    "close() fired immediately after PayPressed doesn't throw or leak a subscription "
+    "(approximates the race on _onPayPressed's job-subscribe path)",
+    () async {
+      // The guard this exercises lives inside _listenToJob, at `await _jobSubscription?.cancel()`
+      // — the one suspension point on _onPayPressed's path (start() itself is synchronous; even
+      // with no prior subscription, `await null` still yields one microtask before _listenToJob
+      // continues to `stream.listen(...)`). Landing close() deterministically inside that single
+      // microtask gap would need clock-control machinery this codebase doesn't otherwise use
+      // (fake_async's FakeAsync, or a controllable Completer-backed onCancel on the fake
+      // processor's StreamController). Short of that, firing close() back-to-back with the
+      // triggering event — no await in between — is the closest deterministic approximation
+      // available: it maximizes the chance the handler is still mid-_listenToJob when close()
+      // runs. Whether or not that exact interleaving is hit on a given run, the assertion below
+      // must hold either way — that's what the isClosed guard (and close()'s own
+      // unawaited(_jobSubscription?.cancel())) is for — so this is a real regression net for
+      // that call site even though it cannot force the race on demand.
+      repository.completeWith(testPayment);
+      final bloc = buildBloc();
+      bloc.add(const Started());
+      await Future<void>.delayed(Duration.zero);
+      bloc.add(const ScanTimerElapsed());
+      await Future<void>.delayed(Duration.zero);
+      // Now in AwaitingConfirmation with a loaded payment.
+
+      bloc.add(const PayPressed(unblockedVerdict));
+      await bloc.close(); // no await between add() and close()
+
+      await Future<void>.delayed(Duration.zero);
+
+      expect(processor.hasActiveListener, isFalse);
+    },
+  );
 }
