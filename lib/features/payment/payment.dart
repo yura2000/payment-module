@@ -6,3 +6,4 @@ export 'src/data/in_memory_payment_repository.dart';
 export 'src/presentation/payment_confirmation_state.dart';
 export 'src/presentation/payment_confirmation_event.dart';
 export 'src/presentation/payment_confirmation_bloc.dart';
+export 'src/presentation/can_pay.dart';
