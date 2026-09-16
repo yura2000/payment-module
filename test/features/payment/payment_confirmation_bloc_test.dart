@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:bloc_test/bloc_test.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:payment_module/core/exceptions.dart';
@@ -270,4 +272,48 @@ void main() {
     await bloc.close();
     expect(processor.hasActiveListener, isFalse);
   });
+
+  test(
+    'close() while Started is still suspended on repository.load() does not throw or leak',
+    () async {
+      // repository.load() only resolves once completeWith() is called — a genuine suspension
+      // point — so this reliably catches _onStarted still awaiting when close() runs, rather
+      // than racing a fast microtask.
+      final bloc = buildBloc();
+      bloc.add(const Started());
+      // Let the handler run past the (fast) processor.inFlight() check and suspend on load().
+      await Future<void>.delayed(Duration.zero);
+      await bloc.close();
+
+      // Resolving the load now must not throw. Before the fix, the still-suspended handler
+      // would call add(PaymentLoaded(...)) on the already-closed bloc and throw
+      // "Bad state: Cannot add new events after calling close".
+      repository.completeWith(testPayment);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(processor.hasActiveListener, isFalse);
+    },
+  );
+
+  test(
+    'close() while Started is still suspended on an in-flight processor.inFlight() '
+    'does not throw or leak a subscription',
+    () async {
+      // A never-completing Completer-backed stream stands in for a job that's still running —
+      // start() on it is never called, so hasActiveListener below tracks whether _listenToJob
+      // ever subscribed to it after close().
+      final inFlightController = StreamController<PaymentJobProgress>.broadcast();
+      processor.inFlightStream = inFlightController.stream;
+      final bloc = buildBloc();
+
+      bloc.add(const Started());
+      await bloc.close();
+      // Flush whatever microtasks the still-suspended handler needed to resume and (before the
+      // fix) reach `_jobSubscription = stream.listen(...)` past close().
+      await Future<void>.delayed(Duration.zero);
+
+      expect(inFlightController.hasListener, isFalse);
+      await inFlightController.close();
+    },
+  );
 }
