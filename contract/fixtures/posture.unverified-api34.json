@@ -1,0 +1,7 @@
+{
+  "assessments": [
+    { "kind": "rooted", "result": "clear" },
+    { "kind": "screenRecording", "result": "unavailable", "reason": "apiLevel" }
+  ],
+  "assessedAt": 1758000000000
+}
