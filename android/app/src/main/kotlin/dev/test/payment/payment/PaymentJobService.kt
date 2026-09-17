@@ -29,6 +29,13 @@ class PaymentJobService : Service() {
     private lateinit var notifications: NotificationRenderer
     /** The job this instance is ticking; `null` once it has finished. Main thread only. */
     private var jobId: String? = null
+
+    /**
+     * The newest start id. [finish] stops with it, so a start that arrived after the finishing job's
+     * own keeps the service alive. [finish] always runs before the next job's [onStartCommand]: its
+     * main-thread continuation is queued before the terminal snapshot even reaches Dart, and a new
+     * `start` needs further main-thread round trips after that.
+     */
     private var lastStartId = 0
 
     override fun onCreate() {
