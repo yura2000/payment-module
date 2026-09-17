@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Assemble the app. Everything Plans 1–4 deliberately deferred to "the composition root": the Security Scan visual, the payment page and its Brand-ordered Sections, the two Brands and their registry, DI wiring, `bootstrap()`, the two "keep it honest" guard tests, per-brand goldens, the on-device perf test, and the `Makefile`. After this plan `make run BRAND=retail` shows the real screen.
+**Goal:** Assemble the app. Everything Plans 1–4 deliberately deferred to "the composition root": the Security Scan visual, the payment page and its Brand-ordered Sections, the two Brands and their registry, DI wiring, `bootstrap()`, the registry-completeness guard test, and the `Makefile`. After this plan `make run BRAND=retail` shows the real screen. **At the user's explicit request, this plan does not build the canary isolation test, the flavor↔registry guard, per-brand goldens, or the on-device perf test** — all four are real §12.3/§13.1 deliverables this plan is deliberately shipping without; see the Scope Boundary and the Self-review's "deliberately out of scope" note for exactly what that gives up.
 
 **Architecture:** Last of five plans. Plans 1–4 are merged; this branch starts at `65926ba` (native-bridge merge) with **155 tests passing**. Everything below is already specified in `docs/architecture.md` — this plan adds no new design surface: no `BrandTokens` field beyond the seven §6 names, no `PaymentSection` variant beyond §6's five, no `import_lint` rule beyond §3.3's eleven, no `Makefile` target beyond §15's six. Where the spec is silent (UI copy, exact widget structure, `headlineWeight` values) this plan picks the smallest reasonable thing and **says so inline**; silence is not licence to invent configuration.
 
@@ -15,11 +15,11 @@
 - Every `flutter run` / `build` / `drive` needs `--flavor retail|utility` **and** `--dart-define=BRAND=<same>`.
 - `~/fvm/versions/3.44.6/bin/flutter` and `~/fvm/versions/3.44.6/bin/dart` are the exact binaries (confirmed present).
 
-**Reference:** `docs/architecture.md` §2 (principle 5: zero conditionals on Brand identity), §3.1/§3.3 (layout, the eleven lint walls), §4 (module interfaces and registration), §6 (the white-label engine, the `PaymentSection` code block, the Brand values table), §7 (two blocs, `canPay`), §11 (Secure Window), §12 (the Radar, refresh rate, the two proofs), §13/§13.1 (adding a Brand and its three guards), §14 (testing), §15 (the six `Makefile` targets). `CONTEXT.md` for every capitalised term. `docs/adr/0002` for Brand selection.
+**Reference:** `docs/architecture.md` §2 (principle 5: zero conditionals on Brand identity), §3.1/§3.3 (layout, the eleven lint walls), §4 (module interfaces and registration), §6 (the white-label engine, the `PaymentSection` code block, the Brand values table), §7 (two blocs, `canPay`), §11 (Secure Window), §12.1/§12.2 (the Radar, refresh rate), §13/§13.1(1) (adding a Brand and the registry-completeness guard), §14 (testing), §15 (the six `Makefile` targets). `CONTEXT.md` for every capitalised term. `docs/adr/0002` for Brand selection.
 
-**Prototypes are primary sources for *technique*, not shape.** `prototype/security-scan` holds a validated `RadarPainter` and the isolation measurement; `prototype/brand-slots` holds the section widgets and the sealed-variant page. Port their bodies; drop their prototype scaffolding (global paint counters, `ScanStyle`, `isolate` toggles, `sectionsA`/`sectionsC` triple-variant configs, the `id`/`displayName` fields their throwaway `BrandTokens` carried).
+**Prototypes are primary sources for *technique*, not shape.** `prototype/security-scan` holds a validated `RadarPainter`; `prototype/brand-slots` holds the section widgets and the sealed-variant page. Port their bodies; drop their prototype scaffolding (global paint counters, `ScanStyle`, `isolate` toggles, `sectionsA`/`sectionsC` triple-variant configs, the `id`/`displayName` fields their throwaway `BrandTokens` carried).
 
-**Scope boundary — what this plan does NOT build:** iOS anything; a real backend; runtime Brand switching or a debug Brand picker; per-flavor launcher icons (§13 row 4, explicitly optional); `docs/ai/prompt-log.md` and the AI Insight Report (deliverables, not code); a CI workflow file. Goldens **are** in scope (§13.1.3) but their reference PNGs are generated on this machine — §13.1.3's "executed in CI on Linux" stays unsatisfied until a CI matrix exists, and Task 17 says so in the committed note.
+**Scope boundary — what this plan does NOT build:** iOS anything; a real backend; runtime Brand switching or a debug Brand picker; per-flavor launcher icons (§13 row 4, explicitly optional); `docs/ai/prompt-log.md` and the AI Insight Report (deliverables, not code); a CI workflow file. **At the user's explicit request, four spec'd deliverables are also cut**: §12.3(1)'s canary isolation test (the deterministic, non-device proof that the scan never repaints the page layer), §12.3(2)'s on-device `integration_test/perf_test.dart` (the frame-budget measurement), §13.1(2)'s flavor↔registry guard (regex-checks Gradle flavors against the Brand registry), and §13.1(3)'s per-brand goldens (twelve reference images across both Brands × six flow states). None of these are replaced by anything else in this plan — they are simply not built. `make goldens` still exists in Task 16 because §15 specifies it as a standing target; it will find nothing tagged `golden` to run.
 
 ---
 
@@ -32,9 +32,9 @@ lib/
 │   ├── locator.dart                                # setupLocator(brand)
 │   └── payment_app.dart                            # PaymentApp (MaterialApp + BrandScope + the page)
 ├── brands/                                         # NEW directory
-│   ├── retail.dart                                 # const retailBrand
-│   ├── utility.dart                                # const utilityBrand
-│   └── registry.dart                               # const brandRegistry
+│   ├── retail.dart                                 # final retailBrand (not const — see Task 11)
+│   ├── utility.dart                                # final utilityBrand
+│   └── registry.dart                               # final brandRegistry
 ├── brand_engine/
 │   ├── brand_engine.dart                           # MODIFY — export brand_registry.dart
 │   └── src/
@@ -59,32 +59,27 @@ lib/
 test/
 ├── architecture_test.dart                          # NEW — §3.3's belt-and-braces regex walker
 ├── brand_engine/brand_registry_test.dart           # NEW
-├── brands/
-│   ├── brand_registry_test.dart                    # NEW — §13.1(1), the completeness guard
-│   └── flavor_registry_test.dart                   # NEW — §13.1(2), flavors ↔ registry
+├── brands/brand_registry_test.dart                 # NEW — §13.1(1), the completeness guard
 ├── app/locator_test.dart                           # NEW
-├── features/
-│   ├── security_guard/
-│   │   ├── scan_isolation_test.dart                # NEW — §12.3(1), the canary
-│   │   ├── security_scan_view_test.dart            # NEW
-│   │   └── posture_banner_test.dart                # NEW
-│   └── payment/
-│       ├── format_money_test.dart                  # NEW
-│       ├── payment_brand_config_test.dart          # NEW
-│       ├── section_widgets_test.dart               # NEW
-│       ├── result_view_test.dart                   # NEW
-│       └── payment_confirmation_page_test.dart     # NEW
-└── golden/
-    ├── payment_page_golden_test.dart               # NEW — §13.1(3), tagged `golden`
-    └── goldens/{retail,utility}/*.png              # GENERATED
+└── features/
+    ├── security_guard/
+    │   ├── security_scan_view_test.dart            # NEW
+    │   └── posture_banner_test.dart                # NEW
+    └── payment/
+        ├── format_money_test.dart                  # NEW
+        ├── payment_brand_config_test.dart          # NEW
+        ├── section_widgets_test.dart               # NEW
+        ├── result_view_test.dart                   # NEW
+        └── payment_confirmation_page_test.dart     # NEW
 
-integration_test/perf_test.dart                     # NEW — §12.3(2)
 Makefile                                            # NEW — §15's six targets
 README.md                                           # MODIFY — replace the Flutter template text
-docs/verification/2026-09-17-composition-root-verification.md   # NEW — Task 20's audit note
+docs/verification/2026-09-17-composition-root-verification.md   # NEW — Task 17's audit note
 ```
 
-Three grouping calls worth stating, since a reader could reasonably have split differently. `payment_brand_config.dart` holds both `PaymentBrandConfig` and the sealed `PaymentSection` hierarchy: a section variant and the config that orders it change together, and §6's own code block presents them as one unit. `section_widgets.dart` holds all four known section widgets: each is ~25 lines of leaf `Widget build`, they share the tokens-and-text-theme idiom, and four one-widget files would be noise. `radar_painter.dart` stays out of the barrel (§12.1: "src/, not exported") — the page needs `SecurityScanView`, never the painter.
+Not built here, at the user's explicit request (see Scope boundary above): `test/architecture_test.dart`'s sibling walls hold, but `test/brands/flavor_registry_test.dart` (§13.1(2)), `test/features/security_guard/scan_isolation_test.dart` (§12.3(1)), `test/golden/` (§13.1(3)), and `integration_test/perf_test.dart` (§12.3(2)) are not.
+
+Two grouping calls worth stating, since a reader could reasonably have split differently. `payment_brand_config.dart` holds both `PaymentBrandConfig` and the sealed `PaymentSection` hierarchy: a section variant and the config that orders it change together, and §6's own code block presents them as one unit. `section_widgets.dart` holds all four known section widgets: each is ~25 lines of leaf `Widget build`, they share the tokens-and-text-theme idiom, and four one-widget files would be noise. `radar_painter.dart` stays out of the barrel (§12.1: "src/, not exported") — the page needs `SecurityScanView`, never the painter.
 
 ---
 
@@ -93,7 +88,7 @@ Three grouping calls worth stating, since a reader could reasonably have split d
 **Files:**
 - Modify: `pubspec.yaml`
 
-`intl` is genuinely new (not in `pubspec.lock` today). `yaml` and `glob` are already resolved as transitive dependencies of `import_lint`, but Task 16's test imports them directly, and importing a package you don't declare is exactly what `depend_on_referenced_packages` flags.
+`intl` is genuinely new (not in `pubspec.lock` today). `yaml` and `glob` are already resolved as transitive dependencies of `import_lint`, but Task 14's test imports them directly, and importing a package you don't declare is exactly what `depend_on_referenced_packages` flags.
 
 - [ ] **Step 1: Add the dependencies**
 
@@ -124,9 +119,9 @@ git commit -m "chore: add intl; declare yaml and glob for the architecture test"
 - Modify: `lib/brand_engine/src/brand_tokens.dart`
 - Test: `test/brand_engine/brand_tokens_test.dart` (exists — add to it)
 
-§6's `BrandTokens` comment lists seven values: `seed, accent, radius, density, spacing, scanMinDuration, headlineWeight`. Six exist; `headlineWeight` doesn't, and both prototype section widgets use it (`style: ...copyWith(fontWeight: t.headlineWeight)`). Add it now so Task 7's widgets have it.
+§6's `BrandTokens` comment lists seven values: `seed, accent, radius, density, spacing, scanMinDuration, headlineWeight`. Six exist; `headlineWeight` doesn't, and both prototype section widgets use it (`style: ...copyWith(fontWeight: t.headlineWeight)`). Add it now so Task 6's widgets have it.
 
-**Values are a plan-level choice** — §6's Brand table doesn't give them. Retail (fluid, warm, promotional) gets `FontWeight.w700`; Utility (dense, sharp, institutional) gets `FontWeight.w500`. Set in Task 11's Brand files, not here.
+**Values are a plan-level choice** — §6's Brand table doesn't give them. Retail (fluid, warm, promotional) gets `FontWeight.w700`; Utility (dense, sharp, institutional) gets `FontWeight.w500`. Set in Task 10's Brand files, not here.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -215,7 +210,7 @@ git commit -m "feat(brand_engine): add BrandTokens.headlineWeight"
 - Modify: `lib/brand_engine/brand_engine.dart` (add one export line)
 - Test: `test/brand_engine/brand_registry_test.dart`
 
-§4 lists `BrandRegistry (type: all, byId)` among `brand_engine`'s exports. It's the lookup `bootstrap()` runs the `BRAND` dart-define through. Two members, no more: `all` for the guard tests and the goldens to iterate, `byId` for bootstrap.
+§4 lists `BrandRegistry (type: all, byId)` among `brand_engine`'s exports. It's the lookup `bootstrap()` runs the `BRAND` dart-define through. Two members, no more: `all` for the completeness guard (Task 11) to iterate, `byId` for bootstrap.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -289,8 +284,9 @@ import '../../core/brand_id.dart';
 import 'brand_config.dart';
 
 /// Every Brand the binary knows, in declaration order. `bootstrap()` resolves the `BRAND`
-/// dart-define through [byId]; the guard tests and the goldens iterate [all]. One `const`
-/// instance lives in `lib/brands/registry.dart`. See docs/architecture.md §4, §6, §13.
+/// dart-define through [byId]; the completeness guard iterates [all]. One instance lives in
+/// `lib/brands/registry.dart` — `final`, not `const`, because the Brands it holds aren't
+/// (see Task 11). See docs/architecture.md §4, §6, §13.
 class BrandRegistry {
   const BrandRegistry(this.all);
 
@@ -532,7 +528,8 @@ import '../../../../brand_engine/brand_engine.dart';
 /// The Security Scan visual: pulsing rings (fluid Brands) or static ones (dense Brands), a
 /// rotating gradient sweep, fading blips, a centre dot. One painter — every Brand difference
 /// comes from [BrandTokens], never from Brand identity (docs/architecture.md §2 principle 5,
-/// §12.1). Ported from the `prototype/security-scan` branch, whose measurements §12.3 records.
+/// §12.1). Ported from the `prototype/security-scan` branch, whose isolation measurements §12.3
+/// records (60 animation frames → 0 page-layer repaints).
 ///
 /// Frames arrive through `super(repaint: progress)`, so an animating scan never rebuilds a
 /// widget; [shouldRepaint] is false unless the tokens themselves change. Every `Paint` and the
@@ -648,8 +645,9 @@ import 'radar_painter.dart';
 /// (docs/architecture.md §12.1). One full sweep lasts `tokens.scanMinDuration`, so the Scan
 /// phase always shows at least one complete cycle.
 ///
-/// The `RepaintBoundary` here is what keeps an animating scan from repainting the page layer;
-/// `test/features/security_guard/scan_isolation_test.dart` measures that claim (§12.3).
+/// The `RepaintBoundary` here is what keeps an animating scan from repainting the page layer —
+/// the property `prototype/security-scan`'s isolation measurement proved (§12.3(1)); this plan
+/// does not carry that measurement forward as a test, at the user's request.
 class SecurityScanView extends StatefulWidget {
   const SecurityScanView({super.key, this.size = const Size(280, 200)});
 
@@ -728,253 +726,14 @@ git commit -m "feat(security_guard): add RadarPainter and SecurityScanView"
 
 ---
 
-### Task 6: The canary isolation test — §12.3's first proof
-
-**Files:**
-- Test: `test/features/security_guard/scan_isolation_test.dart`
-
-§12.3(1) is a *number*, not a vibe: the scan paints once per animation frame, the page layer paints zero times for those frames, and a control without the boundary paints the page layer every frame. The prototype measured 60/0/60 for radar × Retail/Utility.
-
-One design decision, stated because it's the crux of this task. The production `RadarPainter` carries **no paint counter** — instrumenting shipped code to make a test possible is backwards. So the test measures the *mechanism* with its own counting painters — a `_CountingScanPainter` driven by `super(repaint:)` exactly as `RadarPainter` is, and a `_CanaryPainter` in the page layer — and separately asserts that the real `SecurityScanView` puts a `RepaintBoundary` above its `CustomPaint` and drives it from an animation. Together those two halves prove what §12.3 claims about the real widget; the counting half alone can also express the control case (no boundary), which the real widget deliberately cannot.
-
-- [ ] **Step 1: Write the test**
-
-```dart
-// The §12.3(1) proof: an animating, repaint-listenable-driven CustomPaint inside a
-// RepaintBoundary paints every frame without repainting the page layer around it — and the same
-// tree without the boundary repaints the page layer on every single frame.
-//
-// The counters live in these test-local painters, never in RadarPainter: production code
-// shouldn't carry instrumentation. Task 5's widget test pins the other half of the claim — that
-// the real SecurityScanView is this exact structure (RepaintBoundary + CustomPaint + a running
-// AnimationController).
-import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart';
-import 'package:payment_module/brand_engine/brand_engine.dart';
-import 'package:payment_module/features/security_guard/security_guard.dart';
-
-int _scanPaints = 0;
-int _canaryPaints = 0;
-
-/// Stands in for [RadarPainter]: same contract — frames arrive through `repaint`, never through
-/// rebuilds, and `shouldRepaint` is false.
-class _CountingScanPainter extends CustomPainter {
-  _CountingScanPainter(Animation<double> progress) : super(repaint: progress);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    _scanPaints++;
-  }
-
-  @override
-  bool shouldRepaint(_CountingScanPainter old) => false;
-}
-
-/// Lives in the page layer, outside the boundary. Flutter repaints everything in a layer
-/// together, so this painter's count *is* the page layer's repaint count.
-class _CanaryPainter extends CustomPainter {
-  const _CanaryPainter(this.progressLabel);
-
-  final int progressLabel;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    _canaryPaints++;
-  }
-
-  @override
-  bool shouldRepaint(_CanaryPainter old) => old.progressLabel != progressLabel;
-}
-
-const _tokens = BrandTokens(
-  seed: Color(0xFFE65100),
-  accent: Color(0xFFFFB300),
-  radius: 20,
-  density: VisualDensity.comfortable,
-  spacing: 16,
-  scanMinDuration: Duration(milliseconds: 2000),
-  headlineWeight: FontWeight.w700,
-);
-
-/// The page shape under test: a scan (optionally isolated) plus a page-layer canary that
-/// repaints whenever the fake BLoC emits.
-class _Harness extends StatefulWidget {
-  const _Harness({required this.isolate, required this.progress});
-
-  final bool isolate;
-  final ValueNotifier<int> progress;
-
-  @override
-  State<_Harness> createState() => _HarnessState();
-}
-
-class _HarnessState extends State<_Harness>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 2000),
-  )..repeat();
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final scan = CustomPaint(
-      size: const Size(280, 200),
-      painter: _CountingScanPainter(_controller),
-    );
-    return Column(
-      children: [
-        widget.isolate ? RepaintBoundary(child: scan) : scan,
-        ValueListenableBuilder<int>(
-          valueListenable: widget.progress,
-          builder: (context, value, _) => CustomPaint(
-            size: const Size(40, 40),
-            painter: _CanaryPainter(value),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-Future<({int scan, int canaryDuringAnimation, int canaryDuringEmissions})>
-_measure(
-  WidgetTester tester, {
-  required bool isolate,
-  int frames = 60,
-  int emissions = 10,
-}) async {
-  final progress = ValueNotifier<int>(0);
-  addTearDown(progress.dispose);
-
-  await tester.pumpWidget(
-    MaterialApp(
-      theme: ThemeData(extensions: const [_tokens]),
-      home: Scaffold(body: _Harness(isolate: isolate, progress: progress)),
-    ),
-  );
-  await tester.pump(); // settle the first frame
-
-  final scan0 = _scanPaints;
-  final canary0 = _canaryPaints;
-  for (var i = 0; i < frames; i++) {
-    await tester.pump(const Duration(milliseconds: 16));
-  }
-  final scan = _scanPaints - scan0;
-  final canaryDuringAnimation = _canaryPaints - canary0;
-
-  final canary1 = _canaryPaints;
-  for (var i = 0; i < emissions; i++) {
-    progress.value++;
-    await tester.pump(const Duration(milliseconds: 100));
-  }
-  final canaryDuringEmissions = _canaryPaints - canary1;
-
-  return (
-    scan: scan,
-    canaryDuringAnimation: canaryDuringAnimation,
-    canaryDuringEmissions: canaryDuringEmissions,
-  );
-}
-
-void main() {
-  setUp(() {
-    _scanPaints = 0;
-    _canaryPaints = 0;
-  });
-
-  testWidgets('an isolated scan paints every frame and never repaints the page layer', (
-    tester,
-  ) async {
-    final result = await _measure(tester, isolate: true);
-
-    expect(result.scan, 60, reason: 'the scan must paint once per animation frame');
-    expect(
-      result.canaryDuringAnimation,
-      0,
-      reason: 'the animation must not repaint the page layer',
-    );
-    expect(
-      result.canaryDuringEmissions,
-      10,
-      reason: 'the page layer must still repaint when the flow state changes',
-    );
-  });
-
-  testWidgets('control: without the boundary every animation frame repaints the page layer', (
-    tester,
-  ) async {
-    final result = await _measure(tester, isolate: false);
-
-    expect(result.scan, 60);
-    expect(
-      result.canaryDuringAnimation,
-      60,
-      reason: 'control: this is what the RepaintBoundary is preventing',
-    );
-  });
-
-  testWidgets('the real SecurityScanView is the isolated structure this test measures', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: ThemeData(extensions: const [_tokens]),
-        home: const Scaffold(body: SecurityScanView()),
-      ),
-    );
-
-    final paint = find.descendant(
-      of: find.byType(SecurityScanView),
-      matching: find.byType(CustomPaint),
-    );
-    expect(
-      find.ancestor(of: paint.last, matching: find.byType(RepaintBoundary)),
-      findsWidgets,
-      reason: 'the scan CustomPaint must sit inside a RepaintBoundary',
-    );
-
-    final state = tester.state<SecurityScanViewState>(
-      find.byType(SecurityScanView),
-    );
-    expect(
-      state.controller.isAnimating,
-      isTrue,
-      reason: 'frames must come from a running controller, i.e. from `repaint`',
-    );
-  });
-}
-```
-
-- [ ] **Step 2: Run it**
-
-Run: `~/fvm/versions/3.44.6/bin/flutter test test/features/security_guard/scan_isolation_test.dart`
-Expected: `00:00 +3: All tests passed!`
-
-If the frame counts are off by one (61 instead of 60, say), the extra paint is the settle pump and the fix is the *baseline*, not the assertion: capture `scan0`/`canary0` after the extra `await tester.pump()` that caused it. Do not change `60` to a range or delete the assertion — a number that can't be pinned down is not a proof, and if you genuinely cannot make it deterministic, stop and report that rather than loosening it.
-
-- [ ] **Step 3: Commit**
-
-```bash
-git add test/features/security_guard/scan_isolation_test.dart
-git commit -m "test(security_guard): prove the scan never repaints the page layer"
-```
-
----
-
-### Task 7: `PostureBanner`
+### Task 6: `PostureBanner`
 
 **Files:**
 - Create: `lib/features/security_guard/src/presentation/posture_banner.dart`
 - Modify: `lib/features/security_guard/security_guard.dart` (add one export line)
 - Test: `test/features/security_guard/posture_banner_test.dart`
 
-§7 writes it as `PostureBanner(verdict)` — a dumb presentational widget handed a `PolicyVerdict`, not one that reaches for a cubit. That keeps it golden-testable and lets Task 9's Result View reuse it for the "caveat" §7 mentions, instead of duplicating the copy.
+§7 writes it as `PostureBanner(verdict)` — a dumb presentational widget handed a `PolicyVerdict`, not one that reaches for a cubit. That keeps it golden-testable and lets Task 8's Result View reuse it for the "caveat" §7 mentions, instead of duplicating the copy.
 
 Precedence when a verdict carries several kinds of trouble at once: **blockers beat warnings beat notices**, and only the winning band renders. Showing three stacked banners for one posture would be noise, and the blocker is the only one that changes what the user can do.
 
@@ -1213,7 +972,7 @@ git commit -m "feat(security_guard): add PostureBanner"
 
 ---
 
-### Task 8: `PaymentBrandConfig`, the sealed `PaymentSection`, and the four section widgets
+### Task 7: `PaymentBrandConfig`, the sealed `PaymentSection`, and the four section widgets
 
 **Files:**
 - Create: `lib/features/payment/src/presentation/payment_brand_config.dart`
@@ -1224,7 +983,7 @@ git commit -m "feat(security_guard): add PostureBanner"
 
 §6's code block fixes both shapes exactly — five `PaymentSection` variants, `PaymentBrandConfig(ctaLabel, sections)` — so there is nothing to design here beyond the widget bodies, which come from `prototype/brand-slots` (`lib/payment/widgets.dart`). The prototype's `label`/`amountMinor` fields become the real `LineItem.description` and `Money`, formatted through Task 4's `formatMoney`.
 
-`CustomSection` is the escape hatch a Brand uses for a section `payment` has never heard of. It is not exercised by Retail or Utility (§6's table gives both only known sections) — Task 12's guard test covers it with a synthetic Brand instead, which is the honest place for it.
+`CustomSection` is the escape hatch a Brand uses for a section `payment` has never heard of. It is not exercised by Retail or Utility (§6's table gives both only known sections) — Task 11's guard test covers it with a synthetic Brand instead, which is the honest place for it.
 
 - [ ] **Step 1: Write the failing tests for the config**
 
@@ -1668,14 +1427,14 @@ git commit -m "feat(payment): add PaymentBrandConfig, the sealed PaymentSection,
 
 ---
 
-### Task 9: `ResultView`
+### Task 8: `ResultView`
 
 **Files:**
 - Create: `lib/features/payment/src/presentation/result_view.dart`
 - Modify: `lib/features/payment/payment.dart` (add one export line)
 - Test: `test/features/payment/result_view_test.dart`
 
-The `Completed` phase's face. A state of the same route, never a separate page (CONTEXT.md → Result View, §11.1(ii) — that is what keeps the Secure Window held until the user leaves). It takes the terminal `PaymentJobProgress` and, per §7, draws the posture caveat by reusing Task 7's `PostureBanner` rather than inventing second copy for the same facts.
+The `Completed` phase's face. A state of the same route, never a separate page (CONTEXT.md → Result View, §11.1(ii) — that is what keeps the Secure Window held until the user leaves). It takes the terminal `PaymentJobProgress` and, per §7, draws the posture caveat by reusing Task 6's `PostureBanner` rather than inventing second copy for the same facts.
 
 Retry is offered for a failure and not for a success — §7.1's table has `RetryPressed` transition only from `Completed(Failed)`.
 
@@ -1934,7 +1693,7 @@ git commit -m "feat(payment): add ResultView"
 
 ---
 
-### Task 10: `PaymentConfirmationPage`
+### Task 9: `PaymentConfirmationPage`
 
 **Files:**
 - Create: `lib/features/payment/src/presentation/payment_confirmation_page.dart`
@@ -1944,7 +1703,7 @@ The screen. It is the only place the two blocs of §7 meet, and it meets them th
 
 Four structural decisions, each with its reason:
 
-1. **Ports come from `GetIt.I`, the two blocs are built here, not registered.** §4 says "BLoCs are factories", but both need Brand-scoped arguments that only exist once there's a `BuildContext` inside `BrandScope` — a `GetIt` factory has no context. So `registerSecurityModule`/`registerPaymentModule` register the *ports* (they already do), and this page composes the blocs from them. That keeps Task 14's `setupLocator` free of widget concerns.
+1. **Ports come from `GetIt.I`, the two blocs are built here, not registered.** §4 says "BLoCs are factories", but both need Brand-scoped arguments that only exist once there's a `BuildContext` inside `BrandScope` — a `GetIt` factory has no context. So `registerSecurityModule`/`registerPaymentModule` register the *ports* (they already do), and this page composes the blocs from them. That keeps Task 12's `setupLocator` free of widget concerns.
 2. **`_ScanPhaseView` is `const`.** §12.1 wants the `RepaintBoundary(child: CustomPaint)` inside "a const-constructible widget *above* the `BlocBuilder` subtree". Returning the identical `const _ScanPhaseView()` instance on every build means Flutter's element for it sees an unchanged widget and skips rebuilding the subtree entirely — so a `PaymentLoaded` emission during the Scan phase cannot rebuild the animating scan. That is the mechanism the spec is pointing at, achieved without hoisting the scan outside the phase it belongs to.
 3. **`PopScope(canPop: ...)` wraps the `Scaffold`, not the route.** §11.1(iv) makes back-blocking during `Processing` the page's rule and explicitly not the Secure Window scope's.
 4. **`SecureSessionScope` sits above both blocs' provider subtree but inside the page**, so the flag's lifetime is the page's lifetime (§11), and the Result View — a phase, not a route — stays inside it.
@@ -2210,7 +1969,7 @@ Run: `~/fvm/versions/3.44.6/bin/dart analyze --fatal-infos`
 Expected: `No issues found!` The page imports `security_guard`'s barrel (never its `src/`) and no `data/` file, so neither `security_guard_via_barrel` nor `presentation_no_data` fires.
 
 Run: `~/fvm/versions/3.44.6/bin/flutter test`
-Expected: still `All tests passed!` — nothing exercises the page yet; Task 11 does that.
+Expected: still `All tests passed!` — nothing exercises the page yet; Task 10 does that.
 
 - [ ] **Step 3: Commit**
 
@@ -2221,14 +1980,14 @@ git commit -m "feat(payment): add PaymentConfirmationPage"
 
 ---
 
-### Task 11: `PaymentConfirmationPage` widget tests
+### Task 10: `PaymentConfirmationPage` widget tests
 
 **Files:**
 - Test: `test/features/payment/payment_confirmation_page_test.dart`
 
 §14 asks for "page widget tests" on `features/payment`. These drive the real page with the real `di.dart` registrations and the scripted fakes from `test/support/fakes/`, so they exercise the locator wiring too.
 
-The tests build their own Brands rather than importing `lib/brands/` — that doesn't exist until Task 12, and a page test that depends on shipping Brand values would fail for the wrong reason when someone re-tunes Retail's copy.
+The tests build their own Brands rather than importing `lib/brands/` — that doesn't exist until Task 11, and a page test that depends on shipping Brand values would fail for the wrong reason when someone re-tunes Retail's copy.
 
 - [ ] **Step 1: Write the tests**
 
@@ -2588,7 +2347,7 @@ git commit -m "test(payment): drive PaymentConfirmationPage through every phase"
 
 ---
 
-### Task 12: `lib/brands/` — the two Brands, the registry, and §13.1(1)'s completeness guard
+### Task 11: `lib/brands/` — the two Brands, the registry, and §13.1(1)'s completeness guard
 
 **Files:**
 - Create: `lib/brands/retail.dart`
@@ -2601,7 +2360,7 @@ Every value below comes from §6's Brand table. Two things it doesn't give, deci
 - **`headlineWeight`** — Retail `FontWeight.w700` (fluid, promotional), Utility `FontWeight.w500` (dense, institutional). §6 names the token but not its per-Brand values.
 - **`displayName`** — "Retail Shop" and "Utility Pay", matching `CONTEXT.md`'s glossary entries and the `app_name` string resources Plan 4 already put in `android/app/build.gradle.kts`.
 
-**One documented deviation from §13's code sketch.** §13 row 1 writes `const acmeBrand = BrandConfig(...)`. A `BrandConfig` containing a `SecurityBrandConfig` **cannot be `const`**, because `PosturePolicy`'s constructor calls `Map.unmodifiable` and asserts on coverage — neither is a constant expression. The Brands are therefore `final`, not `const`. This costs nothing at runtime (two objects, built once at startup) and keeps `PosturePolicy`'s immutability-and-coverage guard, which is worth more than `const`. Task 21 folds this correction into §13.
+**One documented deviation from §13's code sketch.** §13 row 1 writes `const acmeBrand = BrandConfig(...)`. A `BrandConfig` containing a `SecurityBrandConfig` **cannot be `const`**, because `PosturePolicy`'s constructor calls `Map.unmodifiable` and asserts on coverage — neither is a constant expression. The Brands are therefore `final`, not `const`. This costs nothing at runtime (two objects, built once at startup) and keeps `PosturePolicy`'s immutability-and-coverage guard, which is worth more than `const`. Task 17 folds this correction into §13.
 
 - [ ] **Step 1: Write the failing guard test**
 
@@ -2813,7 +2572,8 @@ import 'retail.dart';
 import 'utility.dart';
 
 /// Every Brand this binary ships. Adding a Brand is one file plus one line here plus one Gradle
-/// flavor — docs/architecture.md §13, whose every step a failing test enforces (§13.1).
+/// flavor — docs/architecture.md §13. §13.1(1)'s completeness guard enforces the Dart-side
+/// shape; §13.1(2)/(3)'s Gradle and golden guards are not built in this plan.
 final brandRegistry = BrandRegistry([retailBrand, utilityBrand]);
 ```
 
@@ -2836,81 +2596,7 @@ git commit -m "feat(brands): add Retail and Utility and the registry completenes
 
 ---
 
-### Task 13: §13.1(2)'s flavor ↔ registry guard
-
-**Files:**
-- Test: `test/brands/flavor_registry_test.dart`
-
-§13.1(2): a test regex-parses `productFlavors { create("…") }` out of `android/app/build.gradle.kts` and asserts set-equality with the registry's ids. It catches the half-done Brand addition — Dart side added, Gradle flavor forgotten, or the reverse — which would otherwise only show up as a build failure or, worse, a successful build of the wrong Brand.
-
-- [ ] **Step 1: Write the test**
-
-```dart
-// §13.1(2): the Dart registry and the Gradle flavors must name exactly the same Brands.
-// A Brand with no flavor cannot be built; a flavor with no Brand builds and then throws at
-// startup when bootstrap() looks its BRAND up.
-import 'dart:io';
-
-import 'package:flutter_test/flutter_test.dart';
-import 'package:payment_module/brands/registry.dart';
-
-void main() {
-  test('every Gradle product flavor has a Brand, and every Brand has a flavor', () {
-    final gradle = File('android/app/build.gradle.kts');
-    expect(
-      gradle.existsSync(),
-      isTrue,
-      reason: 'run this test from the package root',
-    );
-
-    final source = gradle.readAsStringSync();
-    final block = RegExp(
-      r'productFlavors\s*\{(.*?)\n    \}',
-      dotAll: true,
-    ).firstMatch(source);
-    expect(
-      block,
-      isNotNull,
-      reason: 'could not find the productFlavors block in build.gradle.kts',
-    );
-
-    final flavors = RegExp(r'create\("([a-z][a-z0-9]*)"\)')
-        .allMatches(block!.group(1)!)
-        .map((match) => match.group(1)!)
-        .toSet();
-
-    expect(
-      flavors,
-      isNotEmpty,
-      reason: 'the regex matched the block but found no create("…") entries',
-    );
-    expect(
-      flavors,
-      brandRegistry.ids.toSet(),
-      reason:
-          'Gradle flavors and registry Brands have drifted — see docs/architecture.md §13',
-    );
-  });
-}
-```
-
-- [ ] **Step 2: Run it**
-
-Run: `~/fvm/versions/3.44.6/bin/flutter test test/brands/flavor_registry_test.dart`
-Expected: `00:00 +1: All tests passed!` — Plan 4 created `retail` and `utility` flavors and Task 12 registered those two Brands.
-
-If the `productFlavors` block regex doesn't match, read `android/app/build.gradle.kts` and adjust the closing-brace pattern to that file's actual indentation. Keep the two-sided set equality; a one-sided `containsAll` would miss exactly the drift this test exists to catch.
-
-- [ ] **Step 3: Commit**
-
-```bash
-git add test/brands/flavor_registry_test.dart
-git commit -m "test(brands): assert Gradle flavors and the Brand registry agree"
-```
-
----
-
-### Task 14: `setupLocator`
+### Task 12: `setupLocator`
 
 **Files:**
 - Create: `lib/app/locator.dart`
@@ -3003,7 +2689,7 @@ git commit -m "feat(app): add setupLocator"
 
 ---
 
-### Task 15: `PaymentApp`
+### Task 13: `PaymentApp`
 
 **Files:**
 - Create: `lib/app/payment_app.dart`
@@ -3022,7 +2708,9 @@ import 'package:payment_module/app/payment_app.dart';
 import 'package:payment_module/brand_engine/brand_engine.dart';
 import 'package:payment_module/brands/registry.dart';
 import 'package:payment_module/core/brand_id.dart';
+import 'package:payment_module/features/payment/di.dart';
 import 'package:payment_module/features/payment/payment.dart';
+import 'package:payment_module/features/security_guard/di.dart';
 
 import '../support/fakes/fake_payment_processor.dart';
 import '../support/fakes/fake_payment_repository.dart';
@@ -3042,11 +2730,15 @@ void main() {
     GetIt.I.registerSingleton<BrandConfig>(
       brandRegistry.byId(const BrandId('retail')),
     );
-    registerFakePorts(
-      repository: FakePaymentRepository(),
-      processor: processor,
+    registerSecurityModule(
+      GetIt.I,
       environment: environment,
       window: FakeSecureWindow(),
+    );
+    registerPaymentModule(
+      GetIt.I,
+      repository: FakePaymentRepository(),
+      processor: processor,
     );
   });
 
@@ -3084,35 +2776,7 @@ void main() {
 }
 ```
 
-This test needs a small shared helper so it and Task 11's test agree on how fakes get registered. Add it to `test/support/fakes/` as part of this task:
-
-```dart
-// test/support/fakes/register_fake_ports.dart
-import 'package:get_it/get_it.dart';
-import 'package:payment_module/features/payment/di.dart';
-import 'package:payment_module/features/security_guard/di.dart';
-
-import 'fake_payment_processor.dart';
-import 'fake_payment_repository.dart';
-import 'fake_secure_window.dart';
-import 'fake_security_environment.dart';
-
-/// Registers both features' ports against the shared `GetIt` with scripted fakes — what a widget
-/// test needs so `PaymentConfirmationPage` can resolve its ports without touching the platform.
-void registerFakePorts({
-  required FakePaymentRepository repository,
-  required FakePaymentProcessor processor,
-  required FakeSecurityEnvironment environment,
-  required FakeSecureWindow window,
-  GetIt? locator,
-}) {
-  final getIt = locator ?? GetIt.I;
-  registerSecurityModule(getIt, environment: environment, window: window);
-  registerPaymentModule(getIt, repository: repository, processor: processor);
-}
-```
-
-Add `import '../support/fakes/register_fake_ports.dart';` to the test above.
+This registers the ports inline, the same way Task 10's page test does, rather than through a shared helper. With the golden and perf-test tasks out of this plan's scope, this is the only other widget test that needs the same registration, and factoring out a helper for two call sites that don't otherwise share code is the premature abstraction the three-caller version would have earned but two don't.
 
 - [ ] **Step 2: Run it to verify it fails**
 
@@ -3157,13 +2821,13 @@ Expected: `00:00 +2: All tests passed!`
 - [ ] **Step 5: Commit**
 
 ```bash
-git add lib/app test/app test/support/fakes/register_fake_ports.dart
+git add lib/app test/app
 git commit -m "feat(app): add PaymentApp"
 ```
 
 ---
 
-### Task 16: `bootstrap()` and the real `main.dart`
+### Task 14: `bootstrap()` and the real `main.dart`
 
 **Files:**
 - Modify: `lib/main.dart` (replace the placeholder entirely)
@@ -3324,7 +2988,7 @@ Expected: all green.
 ~/fvm/versions/3.44.6/bin/flutter build apk --debug --flavor retail --dart-define=BRAND=retail
 ~/fvm/versions/3.44.6/bin/flutter build apk --debug --flavor utility --dart-define=BRAND=utility
 ```
-Expected: both `✓ Built build/app/outputs/flutter-apk/…`. This is the step that catches a Gradle/flavor problem that no Dart test can see. If a build fails, report it — do not work around it by changing the flavor names, which Task 13's guard pins to the registry.
+Expected: both `✓ Built build/app/outputs/flutter-apk/…`. This is the step that catches a Gradle/flavor problem no Dart test in this plan checks — the flavor↔registry guard that would normally do that (§13.1(2)) is out of scope here. If a build fails, report it — do not work around it by changing the flavor names; Task 11's registry names them `retail`/`utility` to match Plan 4's Gradle flavors exactly, and that pairing is now only enforced by this manual build step.
 
 - [ ] **Step 7: Commit**
 
@@ -3335,7 +2999,7 @@ git commit -m "feat(app): replace the placeholder main with bootstrap()"
 
 ---
 
-### Task 17: `test/architecture_test.dart` — §3.3's belt and braces
+### Task 15: `test/architecture_test.dart` — §3.3's belt and braces
 
 **Files:**
 - Test: `test/architecture_test.dart`
@@ -3518,342 +3182,12 @@ git commit -m "test: enforce the module walls in plain Dart as well as import_li
 
 ---
 
-### Task 18: Per-brand goldens — §13.1(3)
-
-**Files:**
-- Test: `test/golden/payment_page_golden_test.dart`
-- Generated: `test/golden/goldens/{retail,utility}/*.png`
-
-§13.1(3): each Brand × six BLoC-driven states, pumping the real page with scripted fakes, tagged `golden`. This is the visual proof the white-label engine works — twelve images where nothing but configuration differs.
-
-**Animations are disabled for every golden** (`MediaQuery(disableAnimations: true)`). §12.1 already specifies that reduced motion holds the scan at a fixed phase, so this isn't a test-only hack — it's the same code path a user with reduced motion gets, and it's what makes the Scanning golden deterministic instead of catching the radar mid-sweep.
-
-**Text renders as boxes.** `flutter_test` ships no real fonts, so goldens show Ahem blocks. That is normal and still catches what goldens are for here: layout, order, spacing, density, colour, shape.
-
-- [ ] **Step 1: Write the test**
-
-```dart
-@Tags(['golden'])
-library;
-
-import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart';
-import 'package:get_it/get_it.dart';
-import 'package:payment_module/app/payment_app.dart';
-import 'package:payment_module/brand_engine/brand_engine.dart';
-import 'package:payment_module/brands/registry.dart';
-import 'package:payment_module/core/money.dart';
-import 'package:payment_module/core/threat.dart';
-import 'package:payment_module/features/payment/payment.dart';
-import 'package:payment_module/features/security_guard/security_guard.dart';
-
-import '../support/fakes/fake_payment_processor.dart';
-import '../support/fakes/fake_payment_repository.dart';
-import '../support/fakes/fake_secure_window.dart';
-import '../support/fakes/fake_security_environment.dart';
-import '../support/fakes/register_fake_ports.dart';
-
-const _payment = Payment(
-  reference: 'PAY-DEMO-0001',
-  amount: Money(amountMinor: 4200, currency: 'USD'),
-  payee: 'Acme Utilities',
-  lineItems: [
-    LineItem(
-      description: 'Monthly service',
-      amount: Money(amountMinor: 3200, currency: 'USD'),
-    ),
-    LineItem(
-      description: 'Usage overage',
-      amount: Money(amountMinor: 1000, currency: 'USD'),
-    ),
-  ],
-);
-
-final _clear = SecurityPosture(const [
-  ThreatAssessment(kind: ThreatKind.rooted, result: Clear()),
-  ThreatAssessment(kind: ThreatKind.screenRecording, result: Clear()),
-]);
-
-final _unverified = SecurityPosture(const [
-  ThreatAssessment(kind: ThreatKind.rooted, result: Clear()),
-  ThreatAssessment(
-    kind: ThreatKind.screenRecording,
-    result: Unavailable(UnavailableReason.apiLevel),
-  ),
-]);
-
-final _receipt = PaymentReceipt(
-  reference: 'PAY-DEMO-0001',
-  completedAt: DateTime.utc(2026, 9, 17, 8, 30),
-);
-
-void main() {
-  late FakePaymentRepository repository;
-  late FakePaymentProcessor processor;
-  late FakeSecurityEnvironment environment;
-
-  setUp(() {
-    repository = FakePaymentRepository();
-    processor = FakePaymentProcessor();
-    environment = FakeSecurityEnvironment();
-    GetIt.I.reset();
-    registerFakePorts(
-      repository: repository,
-      processor: processor,
-      environment: environment,
-      window: FakeSecureWindow(),
-    );
-  });
-
-  tearDown(() async {
-    await processor.dispose();
-    await environment.dispose();
-    await GetIt.I.reset();
-  });
-
-  for (final brand in brandRegistry.all) {
-    final id = brand.id.value;
-
-    Future<void> pump(WidgetTester tester) async {
-      tester.view.physicalSize = const Size(1080, 2160);
-      tester.view.devicePixelRatio = 3;
-      addTearDown(tester.view.reset);
-
-      await tester.pumpWidget(
-        // Reduced motion holds the scan at a fixed phase (§12.1) — which is also what makes a
-        // golden of an animated screen deterministic.
-        MediaQuery(
-          data: const MediaQueryData(disableAnimations: true),
-          child: PaymentApp(brand: brand),
-        ),
-      );
-      await tester.pump();
-    }
-
-    Future<void> reachAwaiting(WidgetTester tester, SecurityPosture posture) async {
-      repository.completeWith(_payment);
-      environment.pushPosture(posture);
-      await tester.pump(brand.tokens.scanMinDuration * 2);
-      await tester.pump();
-    }
-
-    Future<void> shoot(WidgetTester tester, String state) => expectLater(
-      find.byType(PaymentApp),
-      matchesGoldenFile('goldens/$id/$state.png'),
-    );
-
-    group('$id goldens', () {
-      testWidgets('scanning', (tester) async {
-        await pump(tester);
-        await shoot(tester, 'scanning');
-      });
-
-      testWidgets('awaiting confirmation, secure', (tester) async {
-        await pump(tester);
-        await reachAwaiting(tester, _clear);
-        await shoot(tester, 'awaiting-secure');
-      });
-
-      testWidgets('awaiting confirmation, unverified', (tester) async {
-        await pump(tester);
-        await reachAwaiting(tester, _unverified);
-        await shoot(tester, 'awaiting-unverified');
-      });
-
-      testWidgets('processing at 40%', (tester) async {
-        await pump(tester);
-        await reachAwaiting(tester, _clear);
-        await tester.tap(find.byType(FilledButton));
-        await tester.pump();
-        processor.pushProgress(const Running(40));
-        await tester.pump();
-        await shoot(tester, 'processing');
-      });
-
-      testWidgets('completed, succeeded', (tester) async {
-        await pump(tester);
-        await reachAwaiting(tester, _clear);
-        await tester.tap(find.byType(FilledButton));
-        await tester.pump();
-        processor.pushProgress(Succeeded(_receipt));
-        await tester.pump();
-        await shoot(tester, 'completed-succeeded');
-      });
-
-      testWidgets('completed, failed', (tester) async {
-        await pump(tester);
-        await reachAwaiting(tester, _clear);
-        await tester.tap(find.byType(FilledButton));
-        await tester.pump();
-        processor.pushProgress(const Failed(PaymentFailure.declined));
-        await tester.pump();
-        await shoot(tester, 'completed-failed');
-      });
-    });
-  }
-}
-```
-
-- [ ] **Step 2: Generate the reference images**
-
-Run: `~/fvm/versions/3.44.6/bin/flutter test --tags golden --update-goldens`
-Expected: 12 tests pass and 12 PNGs appear under `test/golden/goldens/retail/` and `.../utility/`.
-
-- [ ] **Step 3: Look at them — a golden nobody looked at proves nothing**
-
-Open the twelve files. Check that: Retail is warm/rounded and shows the Promo Banner above the summary; Utility is navy/sharp/denser and shows the Bill Breakdown; `awaiting-unverified` shows a notice banner on Utility and **no** banner on Retail (Retail's policy allows an unavailable check silently — §6's table); `processing` shows a progress bar; both `completed-*` show their result card. If any image contradicts those expectations, the bug is in the code or the Brand values, not in the golden — fix that and regenerate.
-
-- [ ] **Step 4: Confirm they pass without `--update-goldens`, and that untagged runs skip them**
-
-Run: `~/fvm/versions/3.44.6/bin/flutter test --tags golden`
-Expected: `+12: All tests passed!`
-
-Run: `~/fvm/versions/3.44.6/bin/flutter test`
-Expected: the golden tests do **not** run (§15: `make test` excludes goldens). If they do run, the `@Tags(['golden'])` annotation isn't taking effect — check it sits above `library;` at the very top of the file, and that `make test`'s exclusion is what Task 20 configures.
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add test/golden
-git commit -m "test(golden): capture both Brands across the six flow states"
-```
-
----
-
-### Task 19: `integration_test/perf_test.dart` — §12.3's second proof
-
-**Files:**
-- Test: `integration_test/perf_test.dart`
-
-§12.3(2): wrap the scan in `watchPerformance()` for a fixed window while progress arrives at 10 Hz, and assert build/raster percentiles under a budget computed from the **live** refresh rate — §12.2 is explicit that the budget is `1000 / refreshRate` ms and never a hard-coded 16 or 8.
-
-This runs on a device (`flutter test integration_test/perf_test.dart -d <id>`), like Plan 4's `native_bridge_test.dart`. It is not part of `make test`.
-
-- [ ] **Step 1: Write the test**
-
-```dart
-// §12.3(2), on-device. Budget comes from the live Display.refreshRate (§12.2): a 120 Hz panel
-// gets ~8.3 ms, a 60 Hz one ~16.7 ms, and the assertion is the same code either way.
-import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart';
-import 'package:get_it/get_it.dart';
-import 'package:integration_test/integration_test.dart';
-import 'package:payment_module/app/payment_app.dart';
-import 'package:payment_module/brands/registry.dart';
-import 'package:payment_module/core/brand_id.dart';
-import 'package:payment_module/core/money.dart';
-import 'package:payment_module/core/threat.dart';
-import 'package:payment_module/features/payment/payment.dart';
-import 'package:payment_module/features/security_guard/security_guard.dart';
-
-import '../test/support/fakes/fake_payment_processor.dart';
-import '../test/support/fakes/fake_payment_repository.dart';
-import '../test/support/fakes/fake_secure_window.dart';
-import '../test/support/fakes/fake_security_environment.dart';
-import '../test/support/fakes/register_fake_ports.dart';
-
-const _payment = Payment(
-  reference: 'PAY-PERF-0001',
-  amount: Money(amountMinor: 4200, currency: 'USD'),
-  payee: 'Acme Utilities',
-  lineItems: [],
-);
-
-void main() {
-  final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
-
-  testWidgets('the scan holds its frame budget while the flow emits at 10 Hz', (tester) async {
-    final repository = FakePaymentRepository();
-    final processor = FakePaymentProcessor();
-    final environment = FakeSecurityEnvironment();
-    GetIt.I.reset();
-    registerFakePorts(
-      repository: repository,
-      processor: processor,
-      environment: environment,
-      window: FakeSecureWindow(),
-    );
-    addTearDown(() async {
-      await processor.dispose();
-      await environment.dispose();
-      await GetIt.I.reset();
-    });
-
-    final brand = brandRegistry.byId(const BrandId('retail'));
-    await tester.pumpWidget(PaymentApp(brand: brand));
-    await tester.pumpAndSettle(const Duration(milliseconds: 100));
-
-    // The live refresh rate decides the budget — never a hard-coded frame time (§12.2).
-    final refreshRate = tester.view.display.refreshRate;
-    final budgetMicros = (1000000 / refreshRate).round();
-    debugPrint('Display refresh rate: $refreshRate Hz → budget ${budgetMicros}µs/frame');
-
-    await binding.watchPerformance(() async {
-      repository.completeWith(_payment);
-      environment.pushPosture(
-        SecurityPosture(const [
-          ThreatAssessment(kind: ThreatKind.rooted, result: Clear()),
-          ThreatAssessment(kind: ThreatKind.screenRecording, result: Clear()),
-        ]),
-      );
-
-      // Scan visible, flow emitting at 10 Hz for three seconds.
-      for (var percent = 0; percent < 30; percent++) {
-        processor.pushProgress(Running(percent));
-        await tester.pump(const Duration(milliseconds: 100));
-      }
-    }, reportKey: 'scan_performance');
-
-    final summary = binding.reportData!['scan_performance'] as Map<String, dynamic>;
-    final timeline = summary['frame_build_times'] as List<dynamic>?;
-    expect(
-      timeline,
-      isNotNull,
-      reason: 'watchPerformance produced no frame timings — is this running on a device?',
-    );
-
-    final builds = timeline!.cast<num>().map((value) => value.toDouble()).toList()..sort();
-    final p90 = builds[(builds.length * 0.9).floor().clamp(0, builds.length - 1)];
-    debugPrint('p90 build time: ${p90}µs of ${budgetMicros}µs budget');
-
-    expect(
-      p90,
-      lessThan(budgetMicros),
-      reason:
-          'p90 build time ${p90}µs exceeded the ${budgetMicros}µs budget at $refreshRate Hz',
-    );
-  });
-}
-```
-
-- [ ] **Step 2: Run it on a device**
-
-```bash
-~/fvm/versions/3.44.6/bin/flutter devices
-~/fvm/versions/3.44.6/bin/flutter test integration_test/perf_test.dart \
-  --flavor retail --dart-define=BRAND=retail -d <device-id>
-```
-Expected: pass, with the printed refresh rate and p90 in the log.
-
-**Report what you find rather than forcing green.** Two outcomes are legitimate and both must be written down in Task 21's note: the budget holds, or it doesn't on this particular device. If `reportData`'s key names differ in Flutter 3.44 from `frame_build_times`, print `summary.keys` and use the real key — that's a fix. If the p90 genuinely exceeds the budget, **do not loosen the assertion**: report it, with the numbers, as a finding. §12.2 already warns OEM power modes can hold a device at 60 Hz, and §17 already lists "measure, don't assume".
-
-If no device is attached, say so and leave the test committed and unrun — it is a device test by design, exactly like Plan 4's `native_bridge_test.dart`.
-
-- [ ] **Step 3: Commit**
-
-```bash
-git add integration_test/perf_test.dart
-git commit -m "test(integration): measure the scan's frame budget against the live refresh rate"
-```
-
----
-
-### Task 20: `Makefile`
+### Task 16: `Makefile`
 
 **Files:**
 - Create: `Makefile`
 
-§15's six targets, verbatim in behaviour. Two carry non-obvious content: `test` must exclude the `golden` tag (§15's comment says so), and `analyze` must be `dart analyze --fatal-infos`, never `flutter analyze` (§3.3 findings 1 and 3 — the reason this is a Makefile target at all is so nobody has to remember that).
+§15's six targets, verbatim in behaviour. Two carry non-obvious content: `test` excludes the `golden` tag (§15's comment says so), and `analyze` must be `dart analyze --fatal-infos`, never `flutter analyze` (§3.3 findings 1 and 3 — the reason this is a Makefile target at all is so nobody has to remember that). `goldens` and the `--exclude-tags golden` in `test` are both here per §15's spec even though this plan builds no test tagged `golden` — the target still does the right thing (find nothing) rather than needing to be added later.
 
 `BRAND` is required by `run` and `apk` and pairs the two knobs that must never disagree (§6, ADR-0002).
 
@@ -3909,11 +3243,12 @@ make format
 make run          # expect the BRAND error, not a Flutter invocation
 make apk BRAND=nonsense   # expect Gradle to reject the unknown flavor
 ```
-Expected: `analyze` clean; `test` green with no golden tests in the count; `format` exits 0 (if it rewrites files, commit that); `make run` prints the `BRAND is required` error; the last one fails from Gradle, which proves the variable is really being passed through.
+Expected: `analyze` clean; `test` green; `format` exits 0 (if it rewrites files, commit that); `make run` prints the `BRAND is required` error; the last one fails from Gradle, which proves the variable is really being passed through.
 
-- [ ] **Step 3: Confirm `make test` really excludes goldens**
+- [ ] **Step 3: Confirm `goldens` runs and correctly finds nothing**
 
-Compare `make test`'s test count with `~/fvm/versions/3.44.6/bin/flutter test --tags golden`'s count (12). The two together should equal a plain `flutter test` run's count. If `make test` includes the goldens, `--exclude-tags` isn't matching the annotation — check the tag spelling in both places.
+Run: `~/fvm/versions/3.44.6/bin/flutter test --tags golden`
+Expected: `No tests match the given pattern` (or equivalent) — this plan builds no test tagged `golden`, so the target is correctly a no-op today rather than an error. If it fails with something other than "no matching tests", the tag exclusion in `test` is also suspect; check both before moving on.
 
 - [ ] **Step 4: Commit**
 
@@ -3924,14 +3259,14 @@ git commit -m "build: add the Makefile targets from architecture §15"
 
 ---
 
-### Task 21: README, the architecture fold-back, and the verification note
+### Task 17: README, the architecture fold-back, and the verification note
 
 **Files:**
 - Modify: `README.md` (it is still the Flutter template)
 - Modify: `docs/architecture.md` (§6, §13 — record what this plan settled)
 - Create: `docs/verification/2026-09-17-composition-root-verification.md`
 
-Plans 1 and 4 both ended by folding what they learned back into `docs/architecture.md`. This plan found three things worth recording, and the first is a real correction to the document rather than an addition.
+Plans 1 and 4 both ended by folding what they learned back into `docs/architecture.md`. This plan found two things worth recording, and the first is a real correction to the document rather than an addition.
 
 - [ ] **Step 1: Replace the README**
 
@@ -3950,18 +3285,16 @@ make run BRAND=utility    # navy, dense, Bill Breakdown, blocks on either Threat
 ```
 
 `BRAND` sets both knobs that must agree: Gradle's `--flavor` and Dart's `--dart-define=BRAND`.
-A mismatch is caught by a debug assertion at startup and by `test/brands/flavor_registry_test.dart`.
+A mismatch is caught by a debug assertion at startup.
 
 ## Verify it
 
 ```sh
 make analyze    # dart analyze --fatal-infos — this is the lint; `flutter analyze` skips import_lint
-make test       # the whole suite except goldens
-make goldens    # regenerate the per-Brand reference images
+make test       # the whole suite
 ```
 
-On a device: `flutter test integration_test/native_bridge_test.dart` (the channels end to end)
-and `integration_test/perf_test.dart` (the scan's frame budget).
+On a device: `flutter test integration_test/native_bridge_test.dart` (the channels end to end).
 
 ## Where things are
 
@@ -3978,24 +3311,25 @@ and `integration_test/perf_test.dart` (the scan's frame budget).
 | `docs/architecture.md` | the design, and the reasoning behind it |
 | `CONTEXT.md` | the glossary — every capitalised term above is defined there |
 
-Adding a Brand is three edits and one optional one: `docs/architecture.md` §13 lists them, and a
-failing test enforces every step.
+Adding a Brand is three edits and one optional one: `docs/architecture.md` §13 lists them.
+`test/brands/brand_registry_test.dart` enforces the Dart side (§13.1(1)); the Gradle-side and
+golden guards §13.1 also calls for are not built here.
 ```
 
 - [ ] **Step 2: Fold the corrections into `docs/architecture.md`**
 
-Three edits:
+Two edits:
 
 1. **§13, row 1 — the `const` correction.** Change `const acmeBrand = BrandConfig(...)` to `final acmeBrand = BrandConfig(...)` and append to that row: *"`final`, not `const`: `PosturePolicy` copies its maps unmodifiable and asserts `ThreatKind` coverage, so neither it nor anything containing it can be a constant."*
 2. **§6 — the two values the table lacked.** Add a `headlineWeight` row to the Brand values table: Retail `w700`, Utility `w500`. Add a `displayName` row: "Retail Shop" / "Utility Pay".
-3. **§12.3(1) — how the isolation proof is actually structured.** Append to item 1: *"The shipped painter carries no paint counter; the test measures the mechanism with its own counting painters (including the no-boundary control, which `SecurityScanView` deliberately cannot express) and separately asserts that `SecurityScanView` is that structure — a `RepaintBoundary` over a `CustomPaint` driven by a running controller."*
+
+Do not touch §12.3 or §13.1 beyond this — this plan didn't build what those subsections describe (see Step 4's note below), so there's nothing this plan learned about them to fold back.
 
 - [ ] **Step 3: Run everything, and record the real numbers**
 
 ```bash
 ~/fvm/versions/3.44.6/bin/dart analyze --fatal-infos
 ~/fvm/versions/3.44.6/bin/flutter test
-~/fvm/versions/3.44.6/bin/flutter test --tags golden
 ~/fvm/versions/3.44.6/bin/dart format --set-exit-if-changed lib test integration_test
 ~/fvm/versions/3.44.6/bin/flutter build apk --debug --flavor retail --dart-define=BRAND=retail
 ~/fvm/versions/3.44.6/bin/flutter build apk --debug --flavor utility --dart-define=BRAND=utility
@@ -4009,17 +3343,14 @@ Fill every `<…>` with a number or sentence you actually observed. Do not estim
 # Composition root verification — 2026-09-17
 
 Plan: `docs/superpowers/plans/2026-09-17-composition-root.md`. Verified against
-`docs/architecture.md` §3.1, §3.3, §4, §6, §7, §11, §12, §13, §14, §15.
+`docs/architecture.md` §3.1, §3.3, §4, §6, §7, §11, §12.1, §12.2, §13, §13.1(1), §14, §15.
 
 ## Commands
 
 - `dart analyze --fatal-infos` — <result>
-- `flutter test` — <N> tests passing, goldens excluded
-- `flutter test --tags golden` — <N> goldens passing
+- `flutter test` — <N> tests passing
 - `dart format --set-exit-if-changed lib test integration_test` — <result>
 - `flutter build apk --debug --flavor retail|utility` — <both built? yes/no>
-- `integration_test/perf_test.dart` — <ran on device <name> at <N> Hz, p90 <N>µs of <N>µs budget
-  | not run, no device attached>
 
 ## What the guards proved
 
@@ -4029,26 +3360,32 @@ Plan: `docs/superpowers/plans/2026-09-17-composition-root.md`. Verified against
 - `test/brands/brand_registry_test.dart` — <N> assertions across both Brands: configs resolve,
   ids are slugs, one Summary and one Pay Button each, policies cover every `ThreatKind`, themes
   carry their tokens.
-- `test/brands/flavor_registry_test.dart` — Gradle flavors `{retail, utility}` equal the registry.
-- `test/features/security_guard/scan_isolation_test.dart` — 60 animation frames → <N> scan
-  paints, <N> page-layer paints; 10 emissions → <N> page-layer paints; control without the
-  boundary → <N> page-layer paints.
 
 ## Corrections folded back into docs/architecture.md
 
 - §13 row 1: Brands are `final`, not `const` — `PosturePolicy` cannot be a constant.
 - §6: the Brand table gained `headlineWeight` (Retail w700 / Utility w500) and `displayName`.
-- §12.3(1): recorded how the isolation proof is split, since the shipped painter carries no
-  counter.
+
+## Deliberately not built, at the user's explicit request (docs/superpowers/plans/2026-09-17-composition-root.md, Scope boundary)
+
+- §12.3(1)'s canary isolation test — the deterministic, non-device proof that the scan never
+  repaints the page layer. `prototype/security-scan` measured it (60 frames → 0 page-layer
+  repaints) but that proof was not carried forward as a shipped test.
+- §12.3(2)'s on-device `integration_test/perf_test.dart` — the frame-budget measurement.
+- §13.1(2)'s flavor↔registry guard — nothing mechanically catches a Gradle flavor renamed
+  without updating `lib/brands/registry.dart`, or the reverse. Task 14's Step 6 manual APK build
+  is the only thing standing in for it today.
+- §13.1(3)'s per-brand goldens — no reference images exist; `make goldens` runs and correctly
+  finds nothing.
+
+If any of these matter later, this plan's own task history (the removed sections, kept in git
+history on this branch before the trim) has a fully designed version of each — re-adding one
+does not require redesigning it.
 
 ## Still open
 
-- §13.1(3) wants the goldens "executed in CI on Linux". There is no CI here, so the committed
-  reference images were generated on macOS and will not match a Linux runner byte for byte. The
-  first CI job to run them must regenerate and review them once.
-- §12.3(2)'s budget claim is only as good as the device it ran on — see the number above, and
-  §17's standing warning that OEM power modes can hold a panel at 60 Hz.
-- Everything else in §17 remains as Plan 4 left it.
+- Everything in §17 remains as Plan 4 left it; this plan added no new limitation beyond the four
+  deferrals just listed.
 ```
 
 - [ ] **Step 5: Commit**
@@ -4066,36 +3403,32 @@ git commit -m "docs: replace the template README; fold the composition root's co
 
 | Spec | Task |
 |---|---|
-| §3.1 `lib/app/{payment_app,locator}.dart` | 14, 15 |
-| §3.1 `lib/brands/{retail,utility,registry}.dart` | 12 |
-| §3.1 `main.dart` → `bootstrap()` order | 16 |
-| §3.1/§3.3 `test/architecture_test.dart` | 17 |
-| §3.1 `Makefile` | 20 |
+| §3.1 `lib/app/{payment_app,locator}.dart` | 12, 13 |
+| §3.1 `lib/brands/{retail,utility,registry}.dart` | 11 |
+| §3.1 `main.dart` → `bootstrap()` order | 14 |
+| §3.1/§3.3 `test/architecture_test.dart` | 15 |
+| §3.1 `Makefile` | 16 |
 | §4 `brand_engine` exports `BrandRegistry` | 3 |
-| §4 `security_guard` exports `SecurityScanView`, `PostureBanner` | 5, 7 |
-| §4 `payment` exports `PaymentConfirmationPage`, `PaymentSection`, `PaymentBrandConfig` | 8, 10 |
-| §4 `payment` `src/`: section widgets, money formatting | 4, 8 |
+| §4 `security_guard` exports `SecurityScanView`, `PostureBanner` | 5, 6 |
+| §4 `payment` exports `PaymentConfirmationPage`, `PaymentSection`, `PaymentBrandConfig` | 7, 9 |
+| §4 `payment` `src/`: section widgets, money formatting | 4, 7 |
 | §5 money formatting with `intl` in `payment/presentation` | 4 |
-| §6 `BrandTokens.headlineWeight`; the Brand values table | 2, 12 |
-| §6 sealed `PaymentSection` + `CustomSection` escape hatch | 8 |
-| §7 `canPay` wired; no bloc-to-bloc relay; CTA "checking…" | 10, 11 |
-| §11 `SecureSessionScope` around the page; `PopScope` during Processing | 10, 11 |
+| §6 `BrandTokens.headlineWeight`; the Brand values table | 2, 11 |
+| §6 sealed `PaymentSection` + `CustomSection` escape hatch | 7 |
+| §7 `canPay` wired; no bloc-to-bloc relay; CTA "checking…" | 9, 10 |
+| §11 `SecureSessionScope` around the page; `PopScope` during Processing | 9, 10 |
 | §12.1 `RadarPainter`, `SecurityScanView`, reduced motion | 5 |
-| §12.2 refresh-rate nudge at bootstrap; budget from the live rate | 16, 19 |
-| §12.3(1) canary isolation test | 6 |
-| §12.3(2) `integration_test/perf_test.dart` | 19 |
-| §13.1(1) registry completeness | 12 |
-| §13.1(2) flavor ↔ registry | 13 |
-| §13.1(3) per-brand goldens | 18 |
-| §14 page widget tests, composition-root tests | 11, 12, 13, 14, 15, 16, 17 |
-| §15 the six `Makefile` targets | 20 |
+| §12.2 refresh-rate nudge at bootstrap | 14 |
+| §13.1(1) registry completeness | 11 |
+| §14 page widget tests, composition-root tests | 10, 11, 12, 13, 14, 15 |
+| §15 the six `Makefile` targets | 16 |
 
-Nothing in §3.1's tree is unaccounted for. Deliberately excluded, with the reason stated in the Scope Boundary: per-flavor launcher icons (§13 calls them optional), the prompt log and Insight Report (not code), a CI workflow (nothing in the spec asks for one).
+**Deliberately out of scope, at the user's explicit request, not by this plan's own judgment**: §12.3(1)'s canary isolation test, §12.3(2)'s on-device `integration_test/perf_test.dart`, §13.1(2)'s flavor↔registry guard, and §13.1(3)'s per-brand goldens. This is a real reduction in proof, worth being honest about rather than papering over: nothing in this plan now mechanically catches a Gradle flavor renamed without updating the registry (§13.1(2)'s job), nothing captures the twelve reference images that show the white-label engine actually producing two different screens (§13.1(3)'s job), nothing pins the repaint-isolation claim with a number (§12.3(1)'s job), and nothing measures a real frame budget (§12.3(2)'s job). `make goldens` still exists in Task 16 as a §15-specified target — it will just find nothing tagged `golden` to run. If any of these four turn out to matter later, they were fully designed in this plan's history and can be re-added as a short follow-up without redesigning anything.
 
-**Placeholder scan.** No `TBD`, no "add error handling", no "similar to Task N". Every code step carries complete code. Three places deliberately defer to observation rather than prescribing an answer, and each says exactly what to do and what not to do: Task 11's three plausible test failures (fix the test, don't delete the assertion), Task 19's frame budget (report the number, don't loosen the assertion), and Task 21's verification note (fill in real numbers, don't estimate). Task 18 Step 3 asks a human to look at twelve images — that is the work, not a placeholder.
+Also excluded, for reasons unrelated to this request: per-flavor launcher icons (§13 calls them optional), the prompt log and Insight Report (not code), a CI workflow (nothing in the spec asks for one).
 
-**Type consistency.** Checked every identifier this plan introduces against the code that consumes it later: `BrandTokens.headlineWeight` (Task 2) is read by `SummaryCard`/`PromoBanner` (8) and `ResultView` (9) and set in both Brands (12). `BrandRegistry.all`/`byId`/`ids` (3) are used by the guards (12, 13), `resolveBrand` (16) and the goldens (18). `formatMoney(Money)` (4) is called in 8 only. `PolicyVerdict.hasAnything` (7) is used by `PostureBanner` alone. `PaymentBrandConfig.ctaLabel`/`sections` and all five `PaymentSection` variants (8) are consumed by the page's two switches (10) and the completeness guard (12). `PayButton(label:, enabled:, onPressed:)` (8) matches `_PayButtonSlot`'s call (10) and the section-widget tests (8). `ResultView(outcome:, onRetry:, verdict:)` (9) matches `_ResultSlot` (10). `SecurityScanViewState.controller` (5) is read by the view test (5) and the isolation test (6). `registerFakePorts` (15) is used by 15, 18 and 19. `setupLocator(brand, {locator})` (14) is called by `bootstrap()` (16) and its own test.
+**Placeholder scan.** No `TBD`, no "add error handling", no "similar to Task N". Every code step carries complete code. One place deliberately defers to observation rather than prescribing an answer, and says exactly what to do and what not to do: Task 10's three plausible test failures (fix the test, don't delete the assertion). Task 17's verification note asks for real, run-observed numbers rather than estimates — that is an instruction to the executor, not an unfinished part of the plan.
 
-One ordering detail worth stating, since it looks like an inconsistency and isn't: Task 11's page test registers the fakes inline, while Tasks 15, 18 and 19 go through the `registerFakePorts` helper that Task 15 creates. That is deliberate — Task 11 runs before the helper exists and needs nothing from it, and extracting a shared helper for a single caller would be premature. The helper appears at the point the third caller does.
+**Type consistency.** Checked every identifier this plan introduces against the code that consumes it later: `BrandTokens.headlineWeight` (Task 2) is read by `SummaryCard`/`PromoBanner` (7) and `ResultView` (8) and set in both Brands (11). `BrandRegistry.all`/`byId`/`ids` (3) are used by the completeness guard (11), `resolveBrand` (14) and the Makefile's implicit contract. `formatMoney(Money)` (4) is called in 7 only. `PolicyVerdict.hasAnything` (6) is used by `PostureBanner` alone. `PaymentBrandConfig.ctaLabel`/`sections` and all five `PaymentSection` variants (7) are consumed by the page's two switches (9) and the completeness guard (11). `PayButton(label:, enabled:, onPressed:)` (7) matches `_PayButtonSlot`'s call (9) and the section-widget tests (7). `ResultView(outcome:, onRetry:, verdict:)` (8) matches `_ResultSlot` (9). `SecurityScanViewState.controller` is read by its own widget test (5) — that test is now the only place this animation's wiring is checked at all, which is a direct consequence of dropping the isolation test, noted above rather than silently absorbed. `setupLocator(brand, {locator})` (12) is called by `bootstrap()` (14) and its own test. Both widget-test files (10 and 13) now register their fakes inline with no shared helper between them — with only two call sites left after this trim, that is the right call, not a missed extraction.
 
-**One risk this plan cannot fully de-risk on paper**, stated plainly rather than buried: Tasks 11, 18 and 19 drive real timers, a real animation controller and real platform channels through the test binding, and widget-test timing is the one area where carefully-reasoned code still surprises you. Each of those tasks names the specific failures I consider plausible and says which way to fix them (adjust the test's pump sequence; never loosen an assertion or delete a measurement). If a fourth surprise appears, that is a report-back, not a licence to weaken the proof.
+**One risk this plan cannot fully de-risk on paper**, stated plainly rather than buried: Task 10 drives real timers and real platform-channel-shaped fakes through the test binding, and widget-test timing is the one area where carefully-reasoned code still surprises you. That task names the specific failures I consider plausible and says which way to fix them (adjust the test's pump sequence; never loosen an assertion). If a different surprise appears, that is a report-back, not a licence to weaken the proof.
