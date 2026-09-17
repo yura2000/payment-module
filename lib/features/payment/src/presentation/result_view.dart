@@ -97,7 +97,7 @@ class ResultView extends StatelessWidget {
 
   static String _failureDetail(PaymentFailure failure) => switch (failure) {
     PaymentFailure.declined =>
-      'Please try again with a different payment method. Nothing has been charged.',
+      'The payment was declined. Nothing has been charged.',
     PaymentFailure.timedOut =>
       'Processing took too long and was stopped. Nothing has been charged.',
     PaymentFailure.serviceUnavailable =>

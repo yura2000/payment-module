@@ -58,7 +58,9 @@ void main() {
       onRetry: () => retries++,
     );
 
-    expect(find.textContaining('declined'), findsOneWidget);
+    // Both the headline ("Payment declined") and the detail text mention "declined" — that
+    // redundancy is intentional plan copy, not a bug.
+    expect(find.textContaining('declined'), findsWidgets);
     expect(find.byIcon(Icons.error_outline), findsOneWidget);
     await tester.tap(find.text('Try again'));
     expect(retries, 1);
