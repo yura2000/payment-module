@@ -41,5 +41,12 @@
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
         </intent>
+        <!-- Root-manager packages checked by RootChecks.ROOT_PACKAGES (targetSdk 36 package
+             visibility). Kept in sync by RootPackagesManifestTest. -->
+        <package android:name="com.topjohnwu.magisk"/>
+        <package android:name="eu.chainfire.supersu"/>
+        <package android:name="com.noshufou.android.su"/>
+        <package android:name="com.koushikdutta.superuser"/>
+        <package android:name="me.weishu.kernelsu"/>
     </queries>
 </manifest>
