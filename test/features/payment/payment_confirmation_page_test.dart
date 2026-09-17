@@ -116,14 +116,20 @@ void main() {
     await tester.pump();
   }
 
-  /// Gets past the Scan phase: resolve the load, let the real scan timer elapse.
+  /// Gets past the Scan phase: resolve the load, let the real scan timer elapse, then push the
+  /// posture. `SecurityPostureCubit` is a lazily-created `BlocProvider` that nothing reads until
+  /// a widget built in the AwaitingConfirmation phase (`_PostureBannerSlot`/`_PayButtonSlot`)
+  /// first builds — so pushing the posture any earlier lands on a broadcast stream nobody has
+  /// subscribed to yet, and it is silently dropped.
   Future<void> reachAwaitingConfirmation(
     WidgetTester tester, {
     SecurityPosture? posture,
   }) async {
-    environment.pushPosture(posture ?? _clearPosture);
     repository.completeWith(_payment);
     await tester.pump(_scanDuration * 2);
+    await tester.pump();
+    environment.pushPosture(posture ?? _clearPosture);
+    await tester.pump();
     await tester.pump();
   }
 
@@ -243,8 +249,10 @@ void main() {
     await tester.pump();
 
     expect(find.textContaining('40%'), findsOneWidget);
+    // Flutter 3.44 instantiates the page's PopScope as PopScope<dynamic>, not PopScope<Object?>
+    // — the plan itself calls this out as a plausible SDK-version difference to fix in the test.
     expect(
-      tester.widget<PopScope<Object?>>(find.byType(PopScope<Object?>)).canPop,
+      tester.widget<PopScope<dynamic>>(find.byType(PopScope<dynamic>)).canPop,
       isFalse,
     );
   });
@@ -278,7 +286,9 @@ void main() {
 
     processor.pushProgress(const Failed(PaymentFailure.declined));
     await tester.pump();
-    expect(find.textContaining('declined'), findsOneWidget);
+    // Both ResultView's headline ("Payment declined") and its detail text mention "declined" —
+    // that redundancy is intentional plan copy, not a bug (see Task 8's ResultView fix).
+    expect(find.textContaining('declined'), findsWidgets);
 
     await tester.tap(find.text('Try again'));
     await tester.pump();
@@ -294,12 +304,15 @@ void main() {
     await tester.pump();
 
     // Degrade mid-job: the flow bloc never subscribed to posture, so nothing interrupts it (§7).
+    // Two pumps: one delivers the broadcast-stream posture event and emits the cubit's new
+    // state, the next actually rebuilds the widget that reads it (see reachAwaitingConfirmation).
     environment.pushPosture(
       SecurityPosture(const [
         ThreatAssessment(kind: ThreatKind.rooted, result: Clear()),
         ThreatAssessment(kind: ThreatKind.screenRecording, result: Detected()),
       ]),
     );
+    await tester.pump();
     await tester.pump();
     processor.pushProgress(
       Succeeded(
@@ -309,6 +322,7 @@ void main() {
         ),
       ),
     );
+    await tester.pump();
     await tester.pump();
 
     expect(find.textContaining('complete'), findsOneWidget);
