@@ -10,3 +10,4 @@ export 'src/presentation/can_pay.dart';
 export 'src/presentation/format_money.dart';
 export 'src/presentation/payment_brand_config.dart';
 export 'src/presentation/section_widgets.dart';
+export 'src/presentation/result_view.dart';
