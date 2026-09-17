@@ -9,4 +9,5 @@ export 'src/presentation/posture_state.dart';
 export 'src/presentation/secure_session_scope.dart';
 export 'src/presentation/secure_window_controller.dart';
 export 'src/presentation/security_posture_cubit.dart';
+export 'src/presentation/posture_banner.dart';
 export 'src/presentation/security_scan_view.dart';
