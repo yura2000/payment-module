@@ -12,6 +12,7 @@ class BrandTokens extends ThemeExtension<BrandTokens> {
     required this.density,
     required this.spacing,
     required this.scanMinDuration,
+    required this.headlineWeight,
   });
 
   final Color seed;
@@ -20,6 +21,10 @@ class BrandTokens extends ThemeExtension<BrandTokens> {
   final VisualDensity density;
   final double spacing;
   final Duration scanMinDuration;
+
+  /// Weight for the amount and other headline text — part of a Brand's voice, and not
+  /// expressible through `ThemeData` alone without fixing the whole text theme.
+  final FontWeight headlineWeight;
 
   bool get isDense => density == VisualDensity.compact;
 
@@ -31,6 +36,7 @@ class BrandTokens extends ThemeExtension<BrandTokens> {
     VisualDensity? density,
     double? spacing,
     Duration? scanMinDuration,
+    FontWeight? headlineWeight,
   }) {
     return BrandTokens(
       seed: seed ?? this.seed,
@@ -39,6 +45,7 @@ class BrandTokens extends ThemeExtension<BrandTokens> {
       density: density ?? this.density,
       spacing: spacing ?? this.spacing,
       scanMinDuration: scanMinDuration ?? this.scanMinDuration,
+      headlineWeight: headlineWeight ?? this.headlineWeight,
     );
   }
 
@@ -52,6 +59,7 @@ class BrandTokens extends ThemeExtension<BrandTokens> {
       density: t < 0.5 ? density : other.density,
       spacing: lerpDouble(spacing, other.spacing, t)!,
       scanMinDuration: t < 0.5 ? scanMinDuration : other.scanMinDuration,
+      headlineWeight: FontWeight.lerp(headlineWeight, other.headlineWeight, t)!,
     );
   }
 }

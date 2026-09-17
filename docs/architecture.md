@@ -307,8 +307,10 @@ class SecurityBrandConfig extends BrandFeatureConfig { const SecurityBrandConfig
 
 | | Retail | Utility |
 |---|---|---|
+| `displayName` | "Retail Shop" | "Utility Pay" |
 | `seed` / `accent` | `#E65100` / `#FFB300` | `#0D2B4E` / `#5C6B7A` |
 | `radius` · `density` · `spacing` | 20 · comfortable · 16 | 4 · compact · 8 |
+| `headlineWeight` | w700 | w500 |
 | `scanMinDuration` | 2000 ms | 1200 ms |
 | copy | "Pay now" | "Confirm payment" |
 | sections | Promo Banner · Summary · Pay | Summary · Bill Breakdown · Pay |
@@ -592,7 +594,7 @@ Measured on the prototype with a hypothetical third brand, *Acme Energy*, includ
 
 | # | File | Change |
 |---|---|---|
-| 1 | `lib/brands/acme.dart` *(new)* | `const acmeBrand = BrandConfig(id: BrandId('acme'), displayName: …, tokens: BrandTokens(…), features: [PaymentBrandConfig(ctaLabel, sections), SecurityBrandConfig(policy)])`; brand-unique sections via `CustomSection(builder)` in this file |
+| 1 | `lib/brands/acme.dart` *(new)* | `final acmeBrand = BrandConfig(id: BrandId('acme'), displayName: …, tokens: BrandTokens(…), features: [PaymentBrandConfig(ctaLabel, sections), SecurityBrandConfig(policy)])`; brand-unique sections via `CustomSection(builder)` in this file. `final`, not `const`: `PosturePolicy` copies its maps unmodifiable and asserts `ThreatKind` coverage, so neither it nor anything containing it can be a constant. |
 | 2 | `lib/brands/registry.dart` | one element added to `BrandRegistry([...])` |
 | 3 | `android/app/build.gradle.kts` | one `create("acme") { dimension = "brand"; applicationIdSuffix = ".acme"; resValue("string", "app_name", "Acme Energy") }` block |
 | 4 | `android/app/src/acme/res/mipmap-*/` *(optional)* | launcher icon; default icon otherwise |

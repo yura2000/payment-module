@@ -19,6 +19,11 @@ class PolicyVerdict extends Equatable {
 
   bool get isBlocked => blockers.isNotEmpty;
 
+  /// Whether this verdict has anything at all to tell the user. `isBlocked` answers "may the
+  /// payment proceed"; this answers "is there a banner to draw".
+  bool get hasAnything =>
+      blockers.isNotEmpty || warnings.isNotEmpty || notices.isNotEmpty;
+
   @override
   List<Object?> get props => [blockers, warnings, notices];
 }
