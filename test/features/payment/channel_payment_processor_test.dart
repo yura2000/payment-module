@@ -182,6 +182,32 @@ void main() {
         );
       },
     );
+
+    test(
+      'cancelling the job stream cancels the native subscription at once',
+      () async {
+        var cancelled = false;
+        nativeReplies({
+          'ensureNotificationPermission': () => 'granted',
+          'start': () => {'jobId': 'j-1'},
+        });
+        messenger.setMockStreamHandler(
+          events,
+          MockStreamHandler.inline(
+            onListen: (_, sink) => sink.success(contractFixture('job.running')),
+            onCancel: (_) => cancelled = true,
+          ),
+        );
+
+        final subscription = processor.start(fixturePayment).listen((_) {});
+        await pumpEventQueue();
+        // The job is still running natively; no further snapshot arrives.
+        unawaited(subscription.cancel());
+        await pumpEventQueue();
+
+        expect(cancelled, isTrue);
+      },
+    );
   });
 
   group('inFlight', () {
@@ -229,5 +255,27 @@ void main() {
         throwsA(isA<TransportException>()),
       );
     });
+
+    test(
+      "cancelling a running job's stream cancels the native subscription at once",
+      () async {
+        var cancelled = false;
+        nativeReplies({'current': () => contractFixture('job.running')});
+        messenger.setMockStreamHandler(
+          events,
+          MockStreamHandler.inline(
+            onListen: (_, sink) => sink.success(contractFixture('job.running')),
+            onCancel: (_) => cancelled = true,
+          ),
+        );
+
+        final subscription = (await processor.inFlight())!.listen((_) {});
+        await pumpEventQueue();
+        unawaited(subscription.cancel());
+        await pumpEventQueue();
+
+        expect(cancelled, isTrue);
+      },
+    );
   });
 }

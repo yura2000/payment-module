@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:developer';
 
 import 'package:flutter/services.dart';
@@ -64,12 +65,27 @@ class ChannelPaymentProcessor implements PaymentProcessor {
     }
   }
 
-  Stream<PaymentJobProgress> _progressOf(String jobId) async* {
-    await for (final payload in _events) {
-      final snapshot = decodeJobSnapshot(payload);
-      if (snapshot.jobId != jobId) continue;
-      yield snapshot.progress;
-      if (snapshot.progress is! Running) return;
-    }
-  }
+  /// The shared events stream narrowed to [jobId], completing after the job's terminal snapshot or
+  /// its first malformed one. Built from stream transformers, not an `async*` loop: a cancelled
+  /// `await for` only notices at its next `yield`, whereas this cancels the events subscription —
+  /// and with it the Kotlin collector — as soon as the listener cancels.
+  Stream<PaymentJobProgress> _progressOf(String jobId) => _events
+      .map(decodeJobSnapshot)
+      .where((snapshot) => snapshot.jobId == jobId)
+      .map((snapshot) => snapshot.progress)
+      .transform(_completeAfterTerminal);
 }
+
+/// Passes a job's progress through and closes the stream after the first terminal snapshot or
+/// error.
+final _completeAfterTerminal =
+    StreamTransformer<PaymentJobProgress, PaymentJobProgress>.fromHandlers(
+      handleData: (progress, sink) {
+        sink.add(progress);
+        if (progress is! Running) sink.close();
+      },
+      handleError: (error, stackTrace, sink) {
+        sink.addError(error, stackTrace);
+        sink.close();
+      },
+    );
