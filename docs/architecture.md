@@ -1,6 +1,6 @@
 # Payment Confirmation Module — Architecture
 
-**Status**: approved architecture; implementation not started. Produced by the wayfinder map at
+**Status**: approved architecture; Plans 1–4 of five implemented (`docs/superpowers/plans/`). Produced by the wayfinder map at
 `.scratch/payment-module-architecture/` (fourteen resolved decision tickets; the map is complete as of 2026-09-16).
 **Companions**: [`CONTEXT.md`](../CONTEXT.md) (the glossary — every capitalised term below is defined there),
 [`docs/adr/`](adr/) (five decision records), [`docs/research/`](research/) (six primary-source findings),
@@ -55,36 +55,37 @@ payment-module/
 ├── analysis_options.yaml        # import_lint rules: layers + module boundaries (§3.3)
 ├── Makefile                     # run/apk BRAND=<id> · test · goldens · analyze · format
 ├── CONTEXT.md · docs/{architecture.md, adr/, research/, ai/prompt-log.md}
-├── contract/fixtures/*.json     # channel payload fixtures shared by Dart and Kotlin tests
+├── contract/fixtures/*.json     # channel names + payload fixtures shared by Dart and Kotlin tests
 ├── lib/
 │   ├── main.dart                # bootstrap(): BRAND → registry → setupLocator → preferHighRefreshRate → drift assertion → runApp
 │   ├── app/                     # payment_app.dart (MaterialApp + BrandScope + PaymentConfirmationPage) · locator.dart (setupLocator)
 │   ├── brands/                  # retail.dart · utility.dart · registry.dart   (one const BrandConfig per brand)
 │   ├── bootstrap/               # channel_display_mode.dart · channel_app_info.dart (composition-root adapters)
 │   ├── core/                    # Flutter-free shared kernel: brand_id, money, threat_kind, posture_policy, exceptions
+│   ├── native_bridge/           # native_bridge.dart (barrel) · src/{native_channels, invoke_native, wire_map}.dart — channel plumbing (Flutter), depends on core only
 │   ├── brand_engine/            # brand_engine.dart (barrel) · src/{brand_config, brand_tokens, brand_scope, brand_theme}.dart
 │   └── features/
 │       ├── security_guard/      # security_guard.dart (barrel) · di.dart (registerSecurityModule) · src/{domain, data, presentation}/
 │       └── payment/             # payment.dart (barrel)        · di.dart (registerPaymentModule)  · src/{domain, data, presentation}/
 ├── android/app/src/main/kotlin/dev/test/payment/
 │   ├── MainActivity.kt          # delegates configureFlutterEngine / cleanUpFlutterEngine / onRequestPermissionsResult
-│   ├── bridge/                  # ChannelRegistry · MainThreadResult · MainThreadSink
-│   ├── security/                # SecurityEnvironmentHandler · RootChecks · ScreenRecordingMonitor
-│   ├── window/                  # WindowHandler
-│   ├── payment/                 # PaymentJobHandler · PaymentJobService · PaymentJobStateHolder · PaymentJobNotifications
+│   ├── bridge/                  # Channels (names, error codes, ChannelHandler) · ChannelRegistry · MainThread · MainThreadResult · MainThreadSink
+│   ├── security/                # SecurityEnvironmentHandler · PostureSnapshot · RootChecks · DeviceRootSignals · ScreenRecordingMonitor
+│   ├── window/                  # WindowHandler · DisplayModes
+│   ├── payment/                 # PaymentJobHandler · PaymentJobService · PaymentJobStateHolder · JobSnapshot · StartArgs · PaymentJobSimulation · PaymentJobNotifications · NotificationRenderer
 │   └── app/                     # AppInfoHandler
 ├── test/
-│   ├── support/fakes/           # fake_security_environment · fake_secure_window · fake_payment_processor · fake_payment_repository
+│   ├── support/                 # contract_fixtures.dart · fakes/{fake_security_environment, fake_secure_window, fake_payment_processor, fake_payment_repository}
 │   ├── architecture_test.dart   # regex import rules — belt-and-braces for §3.3
-│   ├── core/ · brand_engine/ · features/{security_guard, payment}/   # mirror lib/
+│   ├── core/ · brand_engine/ · native_bridge/ · bootstrap/ · features/{security_guard, payment}/   # mirror lib/
 │   ├── brands/                  # registry completeness · flavor↔registry
 │   └── golden/                  # per-brand goldens (tag: golden)
-└── integration_test/perf_test.dart
+└── integration_test/            # perf_test.dart · native_bridge_test.dart (on-device bridge smoke test)
 ```
 
 **Modules and their dependency DAG** (lint-enforced, §3.3): `app / brands / bootstrap → *` · `features/payment → core,
-brand_engine, features/security_guard` · `features/security_guard → core, brand_engine` · `brand_engine → core` ·
-`core → (nothing, not even Flutter)`. A module is used **only through its barrel** (`features/security_guard/security_guard.dart`);
+brand_engine, native_bridge, features/security_guard` · `features/security_guard → core, brand_engine, native_bridge` ·
+`native_bridge → core` · `brand_engine → core` · `core → (nothing, not even Flutter)`. A module is used **only through its barrel** (`features/security_guard/security_guard.dart`);
 its `src/` is private to it. Every feature already has the shape of a package — barrel, `src/`, `di.dart` — so promoting
 one to `packages/` later is a move plus a `pubspec.yaml`, with no code changes (ADR-0001 names the trigger; the mechanics
 are in `docs/research/pub-workspace-flutter.md`).
@@ -133,8 +134,10 @@ import_lint:
     presentation_no_data:      { target: "package:payment_module/features/*/src/presentation/**.dart", from: "package:payment_module/features/*/src/data/**.dart",       except: [] }
     # module walls
     core_is_flutter_free:      { target: "package:payment_module/core/**.dart",         from: "package:flutter/**.dart",                                             except: [] }
-    core_depends_on_nothing:   { target: "package:payment_module/core/**.dart",         from: "package:payment_module/{brand_engine,features,app,brands,bootstrap}/**.dart", except: [] }
-    engine_knows_no_features:  { target: "package:payment_module/brand_engine/**.dart", from: "package:payment_module/{features,app,brands,bootstrap}/**.dart",             except: [] }
+    core_depends_on_nothing:   { target: "package:payment_module/core/**.dart",         from: "package:payment_module/{brand_engine,native_bridge,features,app,brands,bootstrap}/**.dart", except: [] }
+    engine_knows_no_features:  { target: "package:payment_module/brand_engine/**.dart", from: "package:payment_module/{native_bridge,features,app,brands,bootstrap}/**.dart",             except: [] }
+    native_bridge_depends_on_core_only: { target: "package:payment_module/native_bridge/**.dart", from: "package:payment_module/{brand_engine,features,app,brands,bootstrap}/**.dart", except: [] }
+    native_bridge_via_barrel:  { target: "package:payment_module/{features,bootstrap}/**.dart", from: "package:payment_module/native_bridge/src/**.dart", except: [] }
     security_guard_via_barrel: { target: "package:payment_module/features/payment/**.dart",        from: "package:payment_module/features/security_guard/src/**.dart", except: [] }
     no_reverse_dependency:     { target: "package:payment_module/features/security_guard/**.dart", from: "package:payment_module/features/payment/**.dart",           except: [] }
 ```
@@ -157,12 +160,18 @@ lib/brand_engine  (barrel brand_engine.dart; internals under src/)
   tests     feature<T>() failure modes · token→ThemeData mapping · registry lookup
   deletion  passes: theme building + scope + lookup would reappear in every feature
 
+lib/native_bridge  (barrel native_bridge.dart; internals under src/; Flutter, depends on core only)
+  exports   NativeChannels (the six §9 names) · invokeNative + nativeReplyTimeout (§9's wire → Dart table) · WireMap (typed payload reads)
+  adapters  none — the plumbing the channel adapters in security_guard, payment and bootstrap share
+  tests     names vs contract/fixtures/channels.json · error-code and timeout mapping · WireMap failure modes
+  deletion  passes: the timeout + error mapping would be copied into five adapters; core cannot hold it (Flutter-free)
+
 lib/features/security_guard  (barrel security_guard.dart; src/{domain,data,presentation}; di.dart)
   domain    ThreatAssessment · AssessmentResult · SecurityPosture · PolicyVerdict · PostureUpdate · SecurityBrandConfig
             ports  SecurityEnvironment { assess(); posture }   SecureWindow { setSecure(bool) }
             use case  WatchPostureVerdict(environment, policy) → Stream<PostureUpdate>   pure fn  evaluatePosturePolicy
   presentation  SecurityPostureCubit · SecureSessionScope · SecureWindowController · SecurityScanView · PostureBanner
-  registration  registerSecurityModule(getIt, {environment, window})
+  registration  registerSecurityModule(getIt, {environment, window}) — channel adapters by default, + SecureWindowController
   src (private) ChannelSecurityEnvironment · ChannelSecureWindow · PostureSnapshotCodec · painter internals
   fakes     test/support/fakes: FakeSecurityEnvironment (scripted postures) · FakeSecureWindow (records calls)
   seams     SecurityEnvironment: Channel + Fake ✓ real · SecureWindow: Channel + Fake ✓ real
@@ -423,13 +432,13 @@ Any method may raise `badArguments`.
 
 **Wire → Dart**: `MissingPluginException`, `badArguments`, `alreadyRunning` → `ClientException` · malformed payload / unknown enum / no reply in 5 s (`ensureNotificationPermission` exempt) → `TransportException` · `noActivity` → `ServiceException` (transient; re-assert on resume) · `serviceStartFailed` → **value** `Failed(serviceUnavailable)` · `failure: timedOut` → value `Failed(timedOut)`.
 
-**Dart adapters** (data layer; placement confirmed in ticket 13): `ChannelSecurityEnvironment implements SecurityEnvironment` · `ChannelWindow implements SecureWindow` (+ `preferHighRefreshRate`, used by `app` bootstrap only — infrastructure, not a domain port) · `ChannelPaymentProcessor implements PaymentProcessor` (`start()` = `ensureNotificationPermission` then `start`; per-job stream filtered by `jobId`; `inFlight` = `current()` + stream) · `ChannelAppInfo` → `BuildInfo` for the debug `flavor == BRAND` assertion.
+**Dart adapters** (data layer; placement confirmed in ticket 13; all built on `lib/native_bridge`): `ChannelSecurityEnvironment implements SecurityEnvironment` · `ChannelSecureWindow implements SecureWindow` · `ChannelPaymentProcessor implements PaymentProcessor` (`start()` = `ensureNotificationPermission` then `start`; per-job stream filtered by `jobId`; `inFlight` = `current()` + stream) · in `lib/bootstrap` (infrastructure, not domain ports): `ChannelDisplayMode` (`window · preferHighRefreshRate`) and `ChannelAppInfo` → `BuildInfo` for the debug `flavor == BRAND` assertion. `assess` acks as soon as an assessment is running; a snapshot is published once the root result and the recorder state are both known.
 
 **Manifest owned by this contract**: `DETECT_SCREEN_RECORDING` (normal) · `FOREGROUND_SERVICE` · `POST_NOTIFICATIONS` · `<service android:name=".payment.PaymentJobService" android:exported="false" android:foregroundServiceType="shortService"/>` · `<queries>` for `com.topjohnwu.magisk`, `eu.chainfire.supersu`, `com.noshufou.android.su`, `com.koushikdutta.superuser`, `me.weishu.kernelsu` — kept in sync with the Kotlin constant list by a fixture-driven test.
 
-**Kotlin layout** `dev.test.payment/`: `MainActivity.kt` · `bridge/{ChannelRegistry, MainThreadResult, MainThreadSink}.kt` · `security/{SecurityEnvironmentHandler, RootChecks, ScreenRecordingMonitor}.kt` · `window/WindowHandler.kt` · `payment/{PaymentJobHandler, PaymentJobService, PaymentJobStateHolder}.kt` · `app/AppInfoHandler.kt`.
+**Kotlin layout** `dev.test.payment/`: `MainActivity.kt` · `bridge/{Channels, ChannelRegistry, MainThread, MainThreadResult, MainThreadSink}.kt` · `security/{SecurityEnvironmentHandler, PostureSnapshot, RootChecks, DeviceRootSignals, ScreenRecordingMonitor}.kt` · `window/{WindowHandler, DisplayModes}.kt` · `payment/{PaymentJobHandler, PaymentJobService, PaymentJobStateHolder, JobSnapshot, StartArgs, PaymentJobSimulation, PaymentJobNotifications, NotificationRenderer}.kt` · `app/AppInfoHandler.kt`. The pure halves (payload builders, the root threshold, the state holder, the simulation, notification specs) are JVM-tested; the Android-bound halves are exercised on a device.
 
-**Fixtures** `contract/fixtures/`: `posture.secure`, `posture.compromised-rooted`, `posture.unverified-api34`, `job.running`, `job.succeeded`, `job.failed-declined`, `job.failed-timedOut`, `start.args`, `buildInfo.retail`, `preferHighRefreshRate.result` (`.json`).
+**Fixtures** `contract/fixtures/`: `channels` (the six names), `posture.secure`, `posture.compromised-rooted`, `posture.unverified-api34`, `job.running`, `job.succeeded`, `job.failed-declined`, `job.failed-timedOut`, `start.args`, `buildInfo.retail`, `preferHighRefreshRate.result` (`.json`).
 
 ## 10. Payment Job service and its lifecycle
 
@@ -440,8 +449,8 @@ job still runs and only the notification is hidden — it is requested contextua
 job. `startForeground` must be called within 5 s of `startForegroundService` (`ServiceCompat.startForeground(…,
 SDK_INT ≥ 34 ? FOREGROUND_SERVICE_TYPE_SHORT_SERVICE : 0)`); progress updates go through `NotificationManager.notify`
 (channel `IMPORTANCE_LOW`, `setOngoing(true)`, `setProgress`); completion updates the notification to a final, non-ongoing
-state and calls `stopForeground(STOP_FOREGROUND_DETACH)` + `stopSelf()` so the outcome persists in the shade until dismissed.
-`onTimeout(startId)` (API 34 overload; verify the API 35 two-arg default delegates) → `failed(timedOut)`; `onDestroy` while
+state and calls `stopForeground(STOP_FOREGROUND_DETACH)` + `stopSelf(lastStartId)` (never a bare `stopSelf()`, which could drop a retry's start) so the outcome persists in the shade until dismissed.
+`onTimeout(startId)` (API 34) and `onTimeout(startId, fgsType)` (API 35) are both overridden → `failed(timedOut)`; `onDestroy` while
 running → `failed(serviceUnavailable)`. `START_NOT_STICKY`. Android 16 `Notification.ProgressStyle` is optional and not used.
 
 State lives in `PaymentJobStateHolder`, a process-wide `object` with a `MutableStateFlow<JobSnapshot?>`; the service is the
@@ -466,12 +475,10 @@ re-attaches through `current()`.
 
 | Class | Owns |
 |---|---|
-| `PaymentJobStateHolder` (`object`) | `state: StateFlow<JobSnapshot?>` · `tryStart(jobId): Boolean` · `update(snapshot)` · delivered-once clearing |
+| `PaymentJobStateHolder` (class; one process-wide `shared` instance) | `state: StateFlow<JobSnapshot?>` · `tryStart(jobId): Boolean` · `update(snapshot)` · delivered-once clearing |
 | `PaymentJobHandler` | `start` / `current` / `ensureNotificationPermission` · stream handler (collect ↔ cancel) · pending permission `Result` fed by `onRequestPermissionsResult` |
 | `PaymentJobService` | channel creation · `startForeground` · ticker · terminal handling · `onTimeout` · `onDestroy`-while-running |
 | `PaymentJobNotifications` | pure builders for progress and final notifications (unit-testable) |
-
-**Dart `ChannelPaymentProcessor`**: `start(payment)` → per-job stream = events `.where(jobId).map(parse)`, completing inclusively on a terminal state. `inFlight()` → `current()`: `null` → `null`; terminal → `Stream.value(parsed)`; running → the filtered stream (replay-1 supplies the current snapshot).
 
 **Dart `ChannelPaymentProcessor`**: `start(payment)` calls `ensureNotificationPermission` (logged, never gating) then `start`, and
 returns the events stream filtered by `jobId`, completing inclusively on a terminal state. `inFlight()` → `current()`: `null` →
@@ -611,7 +618,8 @@ The recipe is a documentation section whose every step is enforced by a failing 
 | `features/security_guard` | `WatchPostureVerdict` ordering and policy application · `SecurityPostureCubit` (bloc_test) · `SecureWindowController` scenarios (§11.2) · channel contract tests via `TestDefaultBinaryMessengerBinding` + fixtures · the **canary isolation test** (§12.3) | `FakeSecurityEnvironment`, `FakeSecureWindow` (`test/support/fakes/`) |
 | `features/payment` | `bloc_test` for every row of the §7.1 table · unit tests for `canPay` and the derived rules · page widget tests · channel contract tests + fixtures · `JobSnapshotCodec` | `FakePaymentProcessor`, `FakePaymentRepository` (`test/support/fakes/`) |
 | composition root | registry completeness · flavor↔registry · per-brand goldens (`golden` tag, Linux CI) · `test/architecture_test.dart` · `integration_test/perf_test.dart` | the same fakes |
-| Kotlin (JVM) | `MainThreadResult` / `MainThreadSink` hop to main · payload builders against `contract/fixtures/` · `PaymentJobNotifications` builders · `RootChecks` threshold logic with injected signals | no Robolectric, no instrumented tests |
+| Kotlin (JVM) | `MainThreadResult` / `MainThreadSink` hop to main · channel names and payload builders against `contract/fixtures/` · `PaymentJobNotifications` specs · `RootChecks` threshold with injected signals and the `/proc/mounts` parser · `<queries>` ↔ `RootChecks.ROOT_PACKAGES` · `PaymentJobStateHolder` · `PaymentJobSimulation` · `DisplayModes` choice | no Robolectric, no instrumented tests |
+| device | `integration_test/native_bridge_test.dart`: every channel through the real Dart adapters and Kotlin handlers (flavor, refresh rate, secure flag, posture, approved / declined / re-attached jobs) | none — a real device or emulator, `POST_NOTIFICATIONS` pre-granted |
 
 Test doubles are scripted fakes, not mocks (`mocktail` where a mock is genuinely simpler). The `contract/fixtures/*.json`
 files pin every message on both sides of the bridge. The architecture test (§3.3) and the completeness test (§13.1) are the
@@ -669,9 +677,9 @@ grilling that produced it.
   spike it on a real API 35+ device before relying on it for the demo.
 - OEM power modes and user caps can hold the app at 60 Hz regardless of the nudge; measure, don't assume.
 - `import_lint` is verified working (§3.3), but only via `dart analyze --fatal-infos` — `flutter analyze` silently never
-  runs it. `flutter build apk --flavor retail|utility` remains on the scaffold's smoke-test list.
+  runs it. `flutter build apk --flavor retail|utility` builds both flavors (verified in Plan 4).
 - Goldens are platform-sensitive: run under the `golden` tag on Linux CI.
-- `onTimeout` overloads differ between API 34 and 35 — override the one-arg form and verify delegation.
+- `onTimeout` overloads differ between API 34 and 35 — both are overridden with the same body (Plan 4), so neither OS version's dispatch matters.
 - Emulator host-side recording of a `FLAG_SECURE` window is unverified.
 - A CI matrix building both APKs is a nice-to-have left unspecified.
 

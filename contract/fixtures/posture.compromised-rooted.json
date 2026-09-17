@@ -1,0 +1,7 @@
+{
+  "assessments": [
+    { "kind": "rooted", "result": "detected" },
+    { "kind": "screenRecording", "result": "clear" }
+  ],
+  "assessedAt": 1758000000000
+}

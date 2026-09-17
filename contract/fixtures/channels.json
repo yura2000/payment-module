@@ -1,0 +1,8 @@
+{
+  "securityEnvironment": "dev.test.payment/security.environment",
+  "securityEnvironmentEvents": "dev.test.payment/security.environment/events",
+  "window": "dev.test.payment/window",
+  "paymentJob": "dev.test.payment/payment.job",
+  "paymentJobEvents": "dev.test.payment/payment.job/events",
+  "app": "dev.test.payment/app"
+}

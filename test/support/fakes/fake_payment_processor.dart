@@ -2,8 +2,9 @@ import 'dart:async';
 
 import 'package:payment_module/features/payment/payment.dart';
 
-/// A scripted [PaymentProcessor] for tests. Push progress for a started job via [pushProgress];
-/// set [inFlightStream] before `start()`/`inFlight()` is called to script a re-attach scenario;
+/// A scripted [PaymentProcessor] for tests. Push progress for a started job via [pushProgress], or
+/// fail its stream via [pushError]; set [inFlightStream] before `start()`/`inFlight()` is called
+/// to script a re-attach scenario, or [inFlightError] to make `inFlight()` fail instead;
 /// set [startError] to make the next `start()` throw once (then reset itself); call
 /// [holdInFlight] before `inFlight()` is called to make it not resolve until [releaseInFlight] —
 /// mirrors [FakePaymentRepository]'s `completeWith`, for tests that need to suspend a bloc
@@ -15,6 +16,7 @@ class FakePaymentProcessor implements PaymentProcessor {
   Payment? lastStartedPayment;
   Object? startError;
   Stream<PaymentJobProgress>? inFlightStream;
+  Object? inFlightError;
 
   Completer<Stream<PaymentJobProgress>?>? _heldInFlight;
 
@@ -34,10 +36,14 @@ class FakePaymentProcessor implements PaymentProcessor {
 
   void pushProgress(PaymentJobProgress progress) => _controller.add(progress);
 
+  void pushError(Object error) => _controller.addError(error);
+
   @override
   Future<Stream<PaymentJobProgress>?> inFlight() {
     final held = _heldInFlight;
-    return held != null ? held.future : Future.value(inFlightStream);
+    if (held != null) return held.future;
+    final error = inFlightError;
+    return error != null ? Future.error(error) : Future.value(inFlightStream);
   }
 
   /// Switches `inFlight()` into "held" mode: the next call won't resolve until

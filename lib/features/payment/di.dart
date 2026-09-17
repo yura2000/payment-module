@@ -1,20 +1,21 @@
 import 'package:get_it/get_it.dart';
 
 import 'payment.dart';
+import 'src/data/channel_payment_processor.dart';
 
-/// Registers `payment`'s ports with [getIt]. Pass [repository]/[processor] to override with
-/// fakes in tests. The composition root's real registration (the channel-backed
-/// `ChannelPaymentProcessor`; `InMemoryPaymentRepository` is already real) is added by the
-/// native-bridge implementation plan; until then this only registers what it's given.
+/// Registers `payment`'s ports as lazy singletons: the in-memory demo repository and the channel
+/// processor, unless [repository]/[processor] override them (tests pass fakes). See
+/// docs/architecture.md §4.
 void registerPaymentModule(
   GetIt getIt, {
   PaymentRepository? repository,
   PaymentProcessor? processor,
 }) {
-  if (repository != null) {
-    getIt.registerSingleton<PaymentRepository>(repository);
-  }
-  if (processor != null) {
-    getIt.registerSingleton<PaymentProcessor>(processor);
-  }
+  getIt
+    ..registerLazySingleton<PaymentRepository>(
+      () => repository ?? InMemoryPaymentRepository(),
+    )
+    ..registerLazySingleton<PaymentProcessor>(
+      () => processor ?? ChannelPaymentProcessor(),
+    );
 }

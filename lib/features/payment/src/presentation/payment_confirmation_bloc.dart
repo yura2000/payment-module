@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/exceptions.dart';
 import '../domain/payment_job_progress.dart';
 import '../domain/payment_processor.dart';
 import '../domain/payment_repository.dart';
@@ -38,7 +39,7 @@ class PaymentConfirmationBloc
     Started event,
     Emitter<PaymentConfirmationState> emit,
   ) async {
-    final inFlight = await _processor.inFlight();
+    final inFlight = await _inFlightOrNull();
     if (isClosed) {
       return; // bloc closed while suspended on inFlight() — don't touch it further
     }
@@ -116,6 +117,16 @@ class PaymentConfirmationBloc
     }
   }
 
+  /// A failed in-flight query (no reply, malformed reply) is treated as "no job": starting fresh
+  /// is safe, because the processor refuses a second job, which surfaces as a retryable failure.
+  Future<Stream<PaymentJobProgress>?> _inFlightOrNull() async {
+    try {
+      return await _processor.inFlight();
+    } on AppException {
+      return null;
+    }
+  }
+
   Future<void> _listenToJob(Stream<PaymentJobProgress> stream) async {
     await _jobSubscription?.cancel();
     // Guards both call sites (the re-attach path in _onStarted and the fresh-start path in
@@ -124,6 +135,11 @@ class PaymentConfirmationBloc
     if (isClosed) return;
     _jobSubscription = stream.listen(
       (progress) => add(JobProgressed(progress)),
+      // The port returns a Stream, so it can also fail through the stream (the channel adapter
+      // starts the job asynchronously). Same rule as a synchronous throw: exception → value (§7.1).
+      onError: (Object _) =>
+          add(const JobProgressed(Failed(PaymentFailure.serviceUnavailable))),
+      cancelOnError: true,
     );
   }
 

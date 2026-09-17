@@ -28,4 +28,11 @@ void main() {
       expect(getIt<PaymentProcessor>(), same(processor));
     },
   );
+
+  test('without overrides, the repository is the in-memory demo', () {
+    registerPaymentModule(getIt);
+
+    expect(getIt<PaymentRepository>(), isA<InMemoryPaymentRepository>());
+    expect(getIt<PaymentRepository>(), same(getIt<PaymentRepository>()));
+  });
 }
