@@ -31,7 +31,8 @@ List<_Rule> _loadRules() {
         (entry.value as YamlMap)['target'] as String,
         (entry.value as YamlMap)['from'] as String,
         [
-          for (final item in ((entry.value as YamlMap)['except'] as YamlList?) ?? const [])
+          for (final item
+              in ((entry.value as YamlMap)['except'] as YamlList?) ?? const [])
             item as String,
         ],
       ),
@@ -47,14 +48,15 @@ String _packageUri(File file) {
 }
 
 /// Every `import '...'` in [source], as an absolute URI resolved against [fileUri].
-Iterable<String> _imports(String fileUri, String source) => RegExp(
-  r'''^\s*import\s+['"]([^'"]+)['"]''',
-  multiLine: true,
-).allMatches(source).map((match) {
-  final raw = match.group(1)!;
-  if (raw.startsWith('dart:') || raw.startsWith('package:')) return raw;
-  return Uri.parse(fileUri).resolve(raw).toString();
-});
+Iterable<String> _imports(String fileUri, String source) =>
+    RegExp(
+      r'''^\s*import\s+['"]([^'"]+)['"]''',
+      multiLine: true,
+    ).allMatches(source).map((match) {
+      final raw = match.group(1)!;
+      if (raw.startsWith('dart:') || raw.startsWith('package:')) return raw;
+      return Uri.parse(fileUri).resolve(raw).toString();
+    });
 
 void main() {
   final rules = _loadRules();
@@ -125,10 +127,14 @@ void main() {
     // A rule set that matches no files would make the test above pass no matter what the code
     // does. Assert the two most load-bearing rules really cover real files.
     final core = 'package:$_package/core/money.dart';
-    final payment = 'package:$_package/features/payment/src/presentation/can_pay.dart';
+    final payment =
+        'package:$_package/features/payment/src/presentation/can_pay.dart';
 
     expect(
-      rules.where((rule) => rule.name == 'core_is_flutter_free').single.targets(core),
+      rules
+          .where((rule) => rule.name == 'core_is_flutter_free')
+          .single
+          .targets(core),
       isTrue,
     );
     expect(
@@ -142,7 +148,9 @@ void main() {
       rules
           .where((rule) => rule.name == 'security_guard_via_barrel')
           .single
-          .forbids('package:$_package/features/security_guard/src/domain/policy_verdict.dart'),
+          .forbids(
+            'package:$_package/features/security_guard/src/domain/policy_verdict.dart',
+          ),
       isTrue,
     );
   });

@@ -18,6 +18,8 @@ class BrandRegistry {
     for (final brand in all) {
       if (brand.id.value == id.value) return brand;
     }
-    throw StateError('Unknown BRAND "${id.value}" — registered: ${ids.join(', ')}');
+    throw StateError(
+      'Unknown BRAND "${id.value}" — registered: ${ids.join(', ')}',
+    );
   }
 }

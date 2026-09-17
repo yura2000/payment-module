@@ -26,11 +26,7 @@ final retailBrand = BrandConfig(
   features: [
     const PaymentBrandConfig(
       ctaLabel: 'Pay now',
-      sections: [
-        PromoBannerSection(),
-        SummarySection(),
-        PayButtonSection(),
-      ],
+      sections: [PromoBannerSection(), SummarySection(), PayButtonSection()],
     ),
     SecurityBrandConfig(
       policy: PosturePolicy(

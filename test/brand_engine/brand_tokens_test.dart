@@ -37,10 +37,16 @@ void main() {
       headlineWeight: FontWeight.w700,
     );
 
-    test('copyWith replaces headlineWeight and preserves it when not given', () {
-      expect(base.copyWith(headlineWeight: FontWeight.w500).headlineWeight, FontWeight.w500);
-      expect(base.copyWith(radius: 4).headlineWeight, FontWeight.w700);
-    });
+    test(
+      'copyWith replaces headlineWeight and preserves it when not given',
+      () {
+        expect(
+          base.copyWith(headlineWeight: FontWeight.w500).headlineWeight,
+          FontWeight.w500,
+        );
+        expect(base.copyWith(radius: 4).headlineWeight, FontWeight.w700);
+      },
+    );
 
     test('lerp interpolates headlineWeight towards the other tokens', () {
       final other = base.copyWith(headlineWeight: FontWeight.w300);

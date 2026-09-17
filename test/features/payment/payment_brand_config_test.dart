@@ -15,11 +15,7 @@ void main() {
   test('carries the Brand copy and section order verbatim', () {
     const config = PaymentBrandConfig(
       ctaLabel: 'Confirm payment',
-      sections: [
-        SummarySection(),
-        BillBreakdownSection(),
-        PayButtonSection(),
-      ],
+      sections: [SummarySection(), BillBreakdownSection(), PayButtonSection()],
     );
 
     expect(config.ctaLabel, 'Confirm payment');

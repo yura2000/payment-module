@@ -18,7 +18,10 @@ void main() {
   });
 
   test('formats a zero-decimal currency without inventing decimals', () {
-    expect(formatMoney(const Money(amountMinor: 4200, currency: 'JPY')), '¥4,200');
+    expect(
+      formatMoney(const Money(amountMinor: 4200, currency: 'JPY')),
+      '¥4,200',
+    );
   });
 
   test('groups thousands', () {

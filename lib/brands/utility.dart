@@ -23,11 +23,7 @@ final utilityBrand = BrandConfig(
   features: [
     const PaymentBrandConfig(
       ctaLabel: 'Confirm payment',
-      sections: [
-        SummarySection(),
-        BillBreakdownSection(),
-        PayButtonSection(),
-      ],
+      sections: [SummarySection(), BillBreakdownSection(), PayButtonSection()],
     ),
     SecurityBrandConfig(
       policy: PosturePolicy(

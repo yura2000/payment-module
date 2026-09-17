@@ -92,10 +92,7 @@ class RadarPainter extends CustomPainter {
       _blip.color = tokens.accent.withValues(alpha: alpha);
       final p = c + Offset(math.cos(a) * r * f, math.sin(a) * r * f);
       if (tokens.isDense) {
-        canvas.drawRect(
-          Rect.fromCenter(center: p, width: 5, height: 5),
-          _blip,
-        );
+        canvas.drawRect(Rect.fromCenter(center: p, width: 5, height: 5), _blip);
       } else {
         canvas.drawCircle(p, 4 + 2 * alpha, _blip);
       }

@@ -39,7 +39,9 @@ Future<void> _pump(WidgetTester tester, Widget child) => tester.pumpWidget(
 
 void main() {
   group('SummaryCard', () {
-    testWidgets('shows the formatted amount, the payee and the reference', (tester) async {
+    testWidgets('shows the formatted amount, the payee and the reference', (
+      tester,
+    ) async {
       await _pump(tester, const SummaryCard(payment: _payment));
 
       expect(find.text(r'$42.00'), findsOneWidget);
@@ -47,7 +49,9 @@ void main() {
       expect(find.textContaining('PAY-DEMO-0001'), findsOneWidget);
     });
 
-    testWidgets('renders the amount at the Brand headline weight', (tester) async {
+    testWidgets('renders the amount at the Brand headline weight', (
+      tester,
+    ) async {
       await _pump(tester, const SummaryCard(payment: _payment));
 
       final amount = tester.widget<Text>(find.text(r'$42.00'));
@@ -56,7 +60,9 @@ void main() {
   });
 
   group('BillBreakdown', () {
-    testWidgets('lists every line item with its amount, plus a total', (tester) async {
+    testWidgets('lists every line item with its amount, plus a total', (
+      tester,
+    ) async {
       await _pump(tester, const BillBreakdown(payment: _payment));
 
       expect(find.text('Monthly service'), findsOneWidget);
@@ -69,7 +75,9 @@ void main() {
   });
 
   group('PromoBanner', () {
-    testWidgets('renders promotional copy without touching the amount', (tester) async {
+    testWidgets('renders promotional copy without touching the amount', (
+      tester,
+    ) async {
       await _pump(tester, const PromoBanner());
 
       expect(find.byIcon(Icons.local_offer), findsOneWidget);
@@ -78,7 +86,9 @@ void main() {
   });
 
   group('PayButton', () {
-    testWidgets('uses the Brand call-to-action copy and fires when enabled', (tester) async {
+    testWidgets('uses the Brand call-to-action copy and fires when enabled', (
+      tester,
+    ) async {
       var taps = 0;
       await _pump(
         tester,
@@ -97,18 +107,24 @@ void main() {
         PayButton(label: 'Pay now', enabled: false, onPressed: () => taps++),
       );
 
-      expect(tester.widget<FilledButton>(find.byType(FilledButton)).onPressed, isNull);
+      expect(
+        tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
+        isNull,
+      );
       await tester.tap(find.byType(FilledButton), warnIfMissed: false);
       expect(taps, 0);
     });
 
-    testWidgets('says it is still checking when the label is the checking one', (tester) async {
-      await _pump(
-        tester,
-        const PayButton(label: 'Checking…', enabled: false, onPressed: null),
-      );
+    testWidgets(
+      'says it is still checking when the label is the checking one',
+      (tester) async {
+        await _pump(
+          tester,
+          const PayButton(label: 'Checking…', enabled: false, onPressed: null),
+        );
 
-      expect(find.text('Checking…'), findsOneWidget);
-    });
+        expect(find.text('Checking…'), findsOneWidget);
+      },
+    );
   });
 }

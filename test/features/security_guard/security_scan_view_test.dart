@@ -23,13 +23,14 @@ const _utilityTokens = BrandTokens(
   headlineWeight: FontWeight.w500,
 );
 
-Widget _host(BrandTokens tokens, {bool disableAnimations = false}) => MediaQuery(
-  data: MediaQueryData(disableAnimations: disableAnimations),
-  child: MaterialApp(
-    theme: ThemeData(extensions: [tokens]),
-    home: const Scaffold(body: Center(child: SecurityScanView())),
-  ),
-);
+Widget _host(BrandTokens tokens, {bool disableAnimations = false}) =>
+    MediaQuery(
+      data: MediaQueryData(disableAnimations: disableAnimations),
+      child: MaterialApp(
+        theme: ThemeData(extensions: [tokens]),
+        home: const Scaffold(body: Center(child: SecurityScanView())),
+      ),
+    );
 
 void main() {
   testWidgets('wraps its CustomPaint in a RepaintBoundary', (tester) async {
@@ -42,15 +43,21 @@ void main() {
     expect(boundary, findsWidgets);
   });
 
-  testWidgets('one animation cycle lasts the Brand scanMinDuration', (tester) async {
+  testWidgets('one animation cycle lasts the Brand scanMinDuration', (
+    tester,
+  ) async {
     await tester.pumpWidget(_host(_utilityTokens));
 
-    final state = tester.state<SecurityScanViewState>(find.byType(SecurityScanView));
+    final state = tester.state<SecurityScanViewState>(
+      find.byType(SecurityScanView),
+    );
     expect(state.controller.duration, const Duration(milliseconds: 1200));
     expect(state.controller.isAnimating, isTrue);
   });
 
-  testWidgets('re-reads the duration when the Brand tokens change', (tester) async {
+  testWidgets('re-reads the duration when the Brand tokens change', (
+    tester,
+  ) async {
     await tester.pumpWidget(_host(_retailTokens));
     await tester.pumpWidget(_host(_utilityTokens));
     // MaterialApp carries `theme` through an implicit AnimatedTheme, so Theme.of(context) only
@@ -58,17 +65,24 @@ void main() {
     // settles — one bare pumpWidget leaves the widget still reading the old tokens.
     await tester.pump(kThemeAnimationDuration);
 
-    final state = tester.state<SecurityScanViewState>(find.byType(SecurityScanView));
+    final state = tester.state<SecurityScanViewState>(
+      find.byType(SecurityScanView),
+    );
     expect(state.controller.duration, const Duration(milliseconds: 1200));
   });
 
-  testWidgets('holds a fixed phase instead of animating when animations are disabled', (tester) async {
-    await tester.pumpWidget(_host(_retailTokens, disableAnimations: true));
+  testWidgets(
+    'holds a fixed phase instead of animating when animations are disabled',
+    (tester) async {
+      await tester.pumpWidget(_host(_retailTokens, disableAnimations: true));
 
-    final state = tester.state<SecurityScanViewState>(find.byType(SecurityScanView));
-    expect(state.controller.isAnimating, isFalse);
-    expect(state.controller.value, 0.25);
-  });
+      final state = tester.state<SecurityScanViewState>(
+        find.byType(SecurityScanView),
+      );
+      expect(state.controller.isAnimating, isFalse);
+      expect(state.controller.value, 0.25);
+    },
+  );
 
   testWidgets('renders at the size it was given', (tester) async {
     await tester.pumpWidget(

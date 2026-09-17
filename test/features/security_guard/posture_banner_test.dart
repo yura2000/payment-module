@@ -14,12 +14,13 @@ const _tokens = BrandTokens(
   headlineWeight: FontWeight.w500,
 );
 
-Future<void> _pump(WidgetTester tester, PolicyVerdict? verdict) => tester.pumpWidget(
-  MaterialApp(
-    theme: ThemeData(extensions: const [_tokens]),
-    home: Scaffold(body: PostureBanner(verdict: verdict)),
-  ),
-);
+Future<void> _pump(WidgetTester tester, PolicyVerdict? verdict) =>
+    tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData(extensions: const [_tokens]),
+        home: Scaffold(body: PostureBanner(verdict: verdict)),
+      ),
+    );
 
 void main() {
   test('nothing to report is nothing to show', () {
@@ -36,11 +37,16 @@ void main() {
   });
 
   testWidgets('renders nothing for a clear verdict', (tester) async {
-    await _pump(tester, const PolicyVerdict(blockers: {}, warnings: {}, notices: {}));
+    await _pump(
+      tester,
+      const PolicyVerdict(blockers: {}, warnings: {}, notices: {}),
+    );
     expect(find.byType(Card), findsNothing);
   });
 
-  testWidgets('a blocker names the Threat and says the payment is blocked', (tester) async {
+  testWidgets('a blocker names the Threat and says the payment is blocked', (
+    tester,
+  ) async {
     await _pump(
       tester,
       const PolicyVerdict(
@@ -65,24 +71,33 @@ void main() {
       ),
     );
 
-    expect(find.textContaining('recording', findRichText: true), findsOneWidget);
+    expect(
+      find.textContaining('recording', findRichText: true),
+      findsOneWidget,
+    );
     expect(find.textContaining('blocked', findRichText: true), findsNothing);
     expect(find.byIcon(Icons.warning_amber), findsOneWidget);
   });
 
-  testWidgets('a notice says the check could not run, not that anything was found', (tester) async {
-    await _pump(
-      tester,
-      const PolicyVerdict(
-        blockers: {},
-        warnings: {},
-        notices: {ThreatKind.screenRecording},
-      ),
-    );
+  testWidgets(
+    'a notice says the check could not run, not that anything was found',
+    (tester) async {
+      await _pump(
+        tester,
+        const PolicyVerdict(
+          blockers: {},
+          warnings: {},
+          notices: {ThreatKind.screenRecording},
+        ),
+      );
 
-    expect(find.textContaining('could not', findRichText: true), findsOneWidget);
-    expect(find.byIcon(Icons.info_outline), findsOneWidget);
-  });
+      expect(
+        find.textContaining('could not', findRichText: true),
+        findsOneWidget,
+      );
+      expect(find.byIcon(Icons.info_outline), findsOneWidget);
+    },
+  );
 
   testWidgets('a blocker wins over a warning and a notice', (tester) async {
     await _pump(

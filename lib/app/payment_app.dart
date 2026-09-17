@@ -16,9 +16,6 @@ class PaymentApp extends StatelessWidget {
   Widget build(BuildContext context) => MaterialApp(
     title: brand.displayName,
     theme: buildBrandTheme(brand),
-    home: BrandScope(
-      brand: brand,
-      child: const PaymentConfirmationPage(),
-    ),
+    home: BrandScope(brand: brand, child: const PaymentConfirmationPage()),
   );
 }

@@ -44,13 +44,16 @@ void main() {
         }
       });
 
-      test('resolves a SecurityBrandConfig whose policy covers every ThreatKind', () {
-        final policy = brand.feature<SecurityBrandConfig>().policy;
-        for (final kind in ThreatKind.values) {
-          expect(policy.onDetected, contains(kind));
-          expect(policy.onUnavailable, contains(kind));
-        }
-      });
+      test(
+        'resolves a SecurityBrandConfig whose policy covers every ThreatKind',
+        () {
+          final policy = brand.feature<SecurityBrandConfig>().policy;
+          for (final kind in ThreatKind.values) {
+            expect(policy.onDetected, contains(kind));
+            expect(policy.onUnavailable, contains(kind));
+          }
+        },
+      );
 
       test('builds a theme that carries its BrandTokens', () {
         final theme = buildBrandTheme(brand);
@@ -67,16 +70,22 @@ void main() {
     expect(brandRegistry.ids, containsAll(['retail', 'utility']));
   });
 
-  test('the two Brands differ in more than identity — tokens are the whole difference', () {
-    final retail = brandRegistry.byId(const BrandId('retail'));
-    final utility = brandRegistry.byId(const BrandId('utility'));
+  test(
+    'the two Brands differ in more than identity — tokens are the whole difference',
+    () {
+      final retail = brandRegistry.byId(const BrandId('retail'));
+      final utility = brandRegistry.byId(const BrandId('utility'));
 
-    expect(retail.tokens.seed, isNot(utility.tokens.seed));
-    expect(retail.tokens.radius, isNot(utility.tokens.radius));
-    expect(retail.tokens.scanMinDuration, isNot(utility.tokens.scanMinDuration));
-    expect(
-      retail.feature<PaymentBrandConfig>().ctaLabel,
-      isNot(utility.feature<PaymentBrandConfig>().ctaLabel),
-    );
-  });
+      expect(retail.tokens.seed, isNot(utility.tokens.seed));
+      expect(retail.tokens.radius, isNot(utility.tokens.radius));
+      expect(
+        retail.tokens.scanMinDuration,
+        isNot(utility.tokens.scanMinDuration),
+      );
+      expect(
+        retail.feature<PaymentBrandConfig>().ctaLabel,
+        isNot(utility.feature<PaymentBrandConfig>().ctaLabel),
+      );
+    },
+  );
 }

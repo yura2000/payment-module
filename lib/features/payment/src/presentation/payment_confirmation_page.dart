@@ -144,10 +144,7 @@ class _PaymentConfirmationViewState extends State<_PaymentConfirmationView> {
         ];
 
       case Completed(:final outcome):
-        return [
-          SizedBox(height: spacing),
-          _ResultSlot(outcome: outcome),
-        ];
+        return [SizedBox(height: spacing), _ResultSlot(outcome: outcome)];
     }
   }
 
@@ -159,17 +156,16 @@ class _PaymentConfirmationViewState extends State<_PaymentConfirmationView> {
   ) => switch (section) {
     // A Payment that hasn't loaded yet leaves its Sections empty rather than showing a spinner
     // per Section; the Scan phase has already covered that wait in the normal case (§7).
-    SummarySection() => payment == null
-        ? const SizedBox.shrink()
-        : SummaryCard(payment: payment),
+    SummarySection() =>
+      payment == null ? const SizedBox.shrink() : SummaryCard(payment: payment),
     PromoBannerSection() => const PromoBanner(),
-    BillBreakdownSection() => payment == null
-        ? const SizedBox.shrink()
-        : BillBreakdown(payment: payment),
+    BillBreakdownSection() =>
+      payment == null
+          ? const SizedBox.shrink()
+          : BillBreakdown(payment: payment),
     PayButtonSection() => _PayButtonSlot(ctaLabel: ctaLabel),
-    CustomSection(:final builder) => payment == null
-        ? const SizedBox.shrink()
-        : builder(context, payment),
+    CustomSection(:final builder) =>
+      payment == null ? const SizedBox.shrink() : builder(context, payment),
   };
 }
 
@@ -236,9 +232,8 @@ class _ResultSlot extends StatelessWidget {
         builder: (context, posture) => ResultView(
           outcome: outcome,
           verdict: posture.verdict,
-          onRetry: () => context.read<PaymentConfirmationBloc>().add(
-            const RetryPressed(),
-          ),
+          onRetry: () =>
+              context.read<PaymentConfirmationBloc>().add(const RetryPressed()),
         ),
       );
 }

@@ -45,20 +45,25 @@ void main() {
     await GetIt.I.reset();
   });
 
-  testWidgets('builds the Brand theme and puts the Brand in scope above the page', (tester) async {
-    final brand = brandRegistry.byId(const BrandId('retail'));
-    await tester.pumpWidget(PaymentApp(brand: brand));
-    await tester.pump();
+  testWidgets(
+    'builds the Brand theme and puts the Brand in scope above the page',
+    (tester) async {
+      final brand = brandRegistry.byId(const BrandId('retail'));
+      await tester.pumpWidget(PaymentApp(brand: brand));
+      await tester.pump();
 
-    expect(find.byType(PaymentConfirmationPage), findsOneWidget);
+      expect(find.byType(PaymentConfirmationPage), findsOneWidget);
 
-    final context = tester.element(find.byType(PaymentConfirmationPage));
-    expect(BrandScope.of(context), same(brand));
-    expect(Theme.of(context).extension<BrandTokens>(), same(brand.tokens));
-    expect(find.text('Retail Shop'), findsOneWidget); // the AppBar title
-  });
+      final context = tester.element(find.byType(PaymentConfirmationPage));
+      expect(BrandScope.of(context), same(brand));
+      expect(Theme.of(context).extension<BrandTokens>(), same(brand.tokens));
+      expect(find.text('Retail Shop'), findsOneWidget); // the AppBar title
+    },
+  );
 
-  testWidgets('a different Brand themes and titles the same widget tree', (tester) async {
+  testWidgets('a different Brand themes and titles the same widget tree', (
+    tester,
+  ) async {
     final brand = brandRegistry.byId(const BrandId('utility'));
     GetIt.I.unregister<BrandConfig>();
     GetIt.I.registerSingleton<BrandConfig>(brand);

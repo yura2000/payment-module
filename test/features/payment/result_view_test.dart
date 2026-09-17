@@ -41,7 +41,9 @@ Future<void> _pump(
 );
 
 void main() {
-  testWidgets('a success shows the receipt reference and offers no retry', (tester) async {
+  testWidgets('a success shows the receipt reference and offers no retry', (
+    tester,
+  ) async {
     await _pump(tester, outcome: Succeeded(_receipt));
 
     expect(find.textContaining('complete'), findsOneWidget);
@@ -66,13 +68,19 @@ void main() {
     expect(retries, 1);
   });
 
-  testWidgets('a timeout and an unavailable processor each get their own wording', (tester) async {
-    await _pump(tester, outcome: const Failed(PaymentFailure.timedOut));
-    expect(find.textContaining('took too long'), findsOneWidget);
+  testWidgets(
+    'a timeout and an unavailable processor each get their own wording',
+    (tester) async {
+      await _pump(tester, outcome: const Failed(PaymentFailure.timedOut));
+      expect(find.textContaining('took too long'), findsOneWidget);
 
-    await _pump(tester, outcome: const Failed(PaymentFailure.serviceUnavailable));
-    expect(find.textContaining('could not be reached'), findsOneWidget);
-  });
+      await _pump(
+        tester,
+        outcome: const Failed(PaymentFailure.serviceUnavailable),
+      );
+      expect(find.textContaining('could not be reached'), findsOneWidget);
+    },
+  );
 
   testWidgets('a posture caveat rides along with a success', (tester) async {
     await _pump(
