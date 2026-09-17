@@ -15,6 +15,7 @@ void main() {
       spacing: 8,
       scanMinDuration: Duration(milliseconds: 1200),
       headlineWeight: FontWeight.w700,
+      transitionDuration: Duration(milliseconds: 350),
     ),
     features: const [],
   );

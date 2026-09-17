@@ -260,8 +260,15 @@ native `BuildConfig.FLAVOR` (`app · buildInfo`, §9); `make apk BRAND=<id>` kee
 type — the `ThemeExtension` pattern applied to configuration, so `brand_engine` knows nothing about features and each
 feature contributes its own config type (`PaymentBrandConfig` in `payment/presentation`, `SecurityBrandConfig` in
 `security_guard/domain`). **Delivery**: `buildBrandTheme` → `ThemeData` (`ColorScheme.fromSeed`, shapes from `radius`,
-`VisualDensity`, `PageTransitionsTheme`) + `BrandTokens` as a `ThemeExtension` for what `ThemeData` cannot express +
-`BrandScope` (`InheritedWidget`) for the non-visual config.
+`VisualDensity`) + `BrandTokens` as a `ThemeExtension` for what `ThemeData` cannot express + `BrandScope`
+(`InheritedWidget`) for the non-visual config.
+
+**Motion, not just shape** (correction — an earlier draft of this section named `PageTransitionsTheme` here, which is
+inert: the app is a single route (§11.1), so `Navigator`-driven route transitions never run). "Fluid vs sharp" is
+instead a `BrandTokens.transitionDuration`, consumed by an `AnimatedSwitcher` keyed on the payment screen's phase
+(`Scanning`/`AwaitingConfirmation`/`Processing`/`Completed`) — a same-phase emission never retriggers it, only an
+actual phase change does. Retail's longer duration reads as a visible cross-fade; Utility's near-instant one reads as
+a snap, matching its sharp shape.
 
 **Sections, not conditionals** (prototype `prototype/brand-slots`, verdict in ticket 08): `PaymentBrandConfig.sections` is an
 ordered list of a **sealed** `PaymentSection` hierarchy — known sections switched exhaustively, plus `CustomSection(builder)`
@@ -272,7 +279,7 @@ flags** today; if one appears it is a field on the owning feature's config, read
 ```dart
 // brand_engine (knows nothing about features)
 abstract class BrandFeatureConfig { const BrandFeatureConfig(); }
-class BrandTokens extends ThemeExtension<BrandTokens> {   // seed, accent, radius, density, spacing, scanMinDuration, headlineWeight
+class BrandTokens extends ThemeExtension<BrandTokens> {   // seed, accent, radius, density, spacing, scanMinDuration, headlineWeight, transitionDuration
   ... copyWith / lerp
 }
 class BrandConfig {
@@ -312,6 +319,7 @@ class SecurityBrandConfig extends BrandFeatureConfig { const SecurityBrandConfig
 | `radius` · `density` · `spacing` | 20 · comfortable · 16 | 4 · compact · 8 |
 | `headlineWeight` | w700 | w500 |
 | `scanMinDuration` | 2000 ms | 1200 ms |
+| `transitionDuration` | 350 ms (fluid) | 90 ms (sharp) |
 | copy | "Pay now" | "Confirm payment" |
 | sections | Promo Banner · Summary · Pay | Summary · Bill Breakdown · Pay |
 | Posture Policy | rooted→block, recorder→warn, unavailable→allow | both→block, unavailable→notice |

@@ -16,6 +16,11 @@ import '../../support/fakes/fake_secure_window.dart';
 import '../../support/fakes/fake_security_environment.dart';
 
 const _scanDuration = Duration(milliseconds: 20);
+const _transitionDuration = Duration(milliseconds: 350);
+// A phase-change assertion needs to pump *past* the cross-fade, not exactly to it — the
+// AnimatedSwitcher's outgoing entry only flips to "dismissed" (and gets removed) on the tick that
+// crosses its duration, not the one that lands exactly on it.
+const _settlePastTransition = Duration(milliseconds: 400);
 
 const _payment = Payment(
   reference: 'PAY-DEMO-0001',
@@ -61,17 +66,19 @@ BrandConfig _brand({
     PayButtonSection(),
   ],
   String ctaLabel = 'Pay now',
+  Duration transitionDuration = _transitionDuration,
 }) => BrandConfig(
   id: const BrandId('test'),
   displayName: 'Test Brand',
-  tokens: const BrandTokens(
-    seed: Color(0xFFE65100),
-    accent: Color(0xFFFFB300),
+  tokens: BrandTokens(
+    seed: const Color(0xFFE65100),
+    accent: const Color(0xFFFFB300),
     radius: 20,
     density: VisualDensity.comfortable,
     spacing: 16,
     scanMinDuration: _scanDuration,
     headlineWeight: FontWeight.w700,
+    transitionDuration: transitionDuration,
   ),
   features: [
     PaymentBrandConfig(ctaLabel: ctaLabel, sections: sections),
@@ -129,6 +136,10 @@ void main() {
     repository.completeWith(_payment);
     await tester.pump(_scanDuration * 2);
     await tester.pump();
+    // Lets the Scanning → AwaitingConfirmation cross-fade finish, so the Scan phase's content is
+    // actually gone rather than still fading out underneath.
+    await tester.pump(_settlePastTransition);
+    await tester.pump();
     environment.pushPosture(posture ?? _clearPosture);
     await tester.pump();
     await tester.pump();
@@ -142,6 +153,37 @@ void main() {
     expect(find.byType(SecurityScanView), findsOneWidget);
     expect(find.byType(PayButton), findsNothing);
   });
+
+  testWidgets('cross-fades between phases at the Brand transitionDuration', (
+    tester,
+  ) async {
+    await pumpPage(
+      tester,
+      brand: _brand(transitionDuration: const Duration(milliseconds: 90)),
+    );
+
+    final switcher = tester.widget<AnimatedSwitcher>(
+      find.byType(AnimatedSwitcher),
+    );
+    expect(switcher.duration, const Duration(milliseconds: 90));
+  });
+
+  testWidgets(
+    'the outgoing phase is still in the tree mid-transition, and gone once it settles',
+    (tester) async {
+      await pumpPage(tester);
+      repository.completeWith(_payment);
+      await tester.pump(_scanDuration * 2);
+      await tester.pump(); // the phase switches; the cross-fade just started
+
+      expect(find.byType(SecurityScanView), findsOneWidget);
+
+      await tester.pump(_settlePastTransition);
+      await tester
+          .pump(); // flushes the AnimatedSwitcher's own post-fade cleanup
+      expect(find.byType(SecurityScanView), findsNothing);
+    },
+  );
 
   testWidgets(
     'holds the Secure Window while mounted and releases it on dispose',
@@ -323,6 +365,10 @@ void main() {
 
     await tester.tap(find.text('Try again'));
     await tester.pump();
+    // Lets the Completed → AwaitingConfirmation cross-fade finish, so ResultView is actually gone
+    // rather than still fading out underneath.
+    await tester.pump(_settlePastTransition);
+    await tester.pump();
 
     expect(find.byType(ResultView), findsNothing);
     expect(find.text('Pay now'), findsOneWidget);
@@ -359,6 +405,11 @@ void main() {
         ),
       );
       await tester.pump();
+      await tester.pump();
+      // Lets the Processing → Completed cross-fade finish — otherwise the outgoing Processing
+      // phase's own PostureBanner is still in the tree alongside ResultView's, and "recording"
+      // matches twice.
+      await tester.pump(_settlePastTransition);
       await tester.pump();
 
       expect(find.textContaining('complete'), findsOneWidget);

@@ -12,6 +12,7 @@ const _tokens = BrandTokens(
   spacing: 8,
   scanMinDuration: Duration(milliseconds: 1200),
   headlineWeight: FontWeight.w500,
+  transitionDuration: Duration(milliseconds: 350),
 );
 
 Future<void> _pump(WidgetTester tester, PolicyVerdict? verdict) =>

@@ -11,6 +11,7 @@ void main() {
     spacing: 16,
     scanMinDuration: Duration(milliseconds: 2000),
     headlineWeight: FontWeight.w700,
+    transitionDuration: Duration(milliseconds: 350),
   );
 
   test('isDense is true only for VisualDensity.compact', () {
@@ -35,6 +36,7 @@ void main() {
       spacing: 16,
       scanMinDuration: Duration(milliseconds: 2000),
       headlineWeight: FontWeight.w700,
+      transitionDuration: Duration(milliseconds: 350),
     );
 
     test(
@@ -52,6 +54,49 @@ void main() {
       final other = base.copyWith(headlineWeight: FontWeight.w300);
       expect(base.lerp(other, 0).headlineWeight, FontWeight.w700);
       expect(base.lerp(other, 1).headlineWeight, FontWeight.w300);
+    });
+  });
+
+  group('transitionDuration', () {
+    const base = BrandTokens(
+      seed: Color(0xFFE65100),
+      accent: Color(0xFFFFB300),
+      radius: 20,
+      density: VisualDensity.comfortable,
+      spacing: 16,
+      scanMinDuration: Duration(milliseconds: 2000),
+      headlineWeight: FontWeight.w700,
+      transitionDuration: Duration(milliseconds: 350),
+    );
+
+    test(
+      'copyWith replaces transitionDuration and preserves it when not given',
+      () {
+        expect(
+          base
+              .copyWith(transitionDuration: const Duration(milliseconds: 90))
+              .transitionDuration,
+          const Duration(milliseconds: 90),
+        );
+        expect(
+          base.copyWith(radius: 4).transitionDuration,
+          const Duration(milliseconds: 350),
+        );
+      },
+    );
+
+    test('lerp switches transitionDuration at the midpoint, like density', () {
+      final other = base.copyWith(
+        transitionDuration: const Duration(milliseconds: 90),
+      );
+      expect(
+        base.lerp(other, 0).transitionDuration,
+        const Duration(milliseconds: 350),
+      );
+      expect(
+        base.lerp(other, 1).transitionDuration,
+        const Duration(milliseconds: 90),
+      );
     });
   });
 }

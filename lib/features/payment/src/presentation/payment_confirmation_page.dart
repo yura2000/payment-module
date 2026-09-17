@@ -99,7 +99,21 @@ class _PaymentConfirmationViewState extends State<_PaymentConfirmationView> {
                 constraints: const BoxConstraints(maxWidth: 440),
                 child: ListView(
                   padding: EdgeInsets.all(spacing),
-                  children: _bodyFor(context, flow, config, spacing),
+                  children: [
+                    // Cross-fades between phases at the Brand's transitionDuration — the "fluid
+                    // vs sharp" trait §6 already gives shape (radius) and density, applied to
+                    // motion. Keyed on the phase's type, not its value, so a same-phase emission
+                    // (a progress tick, a posture update) never retriggers the fade — only an
+                    // actual phase change does.
+                    AnimatedSwitcher(
+                      duration: context.tokens.transitionDuration,
+                      child: Column(
+                        key: ValueKey(flow.phase.runtimeType),
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: _bodyFor(context, flow, config, spacing),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),

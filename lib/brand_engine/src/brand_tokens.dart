@@ -13,6 +13,7 @@ class BrandTokens extends ThemeExtension<BrandTokens> {
     required this.spacing,
     required this.scanMinDuration,
     required this.headlineWeight,
+    required this.transitionDuration,
   });
 
   final Color seed;
@@ -26,6 +27,12 @@ class BrandTokens extends ThemeExtension<BrandTokens> {
   /// expressible through `ThemeData` alone without fixing the whole text theme.
   final FontWeight headlineWeight;
 
+  /// How long the payment screen takes to cross-fade between phases (Scanning →
+  /// AwaitingConfirmation → Processing → Completed). A fluid Brand gets a longer, visible fade;
+  /// a sharp Brand gets a near-instant one — the same "fluid vs sharp" trait §6 already expresses
+  /// through shape (`radius`) and density, applied to motion instead.
+  final Duration transitionDuration;
+
   bool get isDense => density == VisualDensity.compact;
 
   @override
@@ -37,6 +44,7 @@ class BrandTokens extends ThemeExtension<BrandTokens> {
     double? spacing,
     Duration? scanMinDuration,
     FontWeight? headlineWeight,
+    Duration? transitionDuration,
   }) {
     return BrandTokens(
       seed: seed ?? this.seed,
@@ -46,6 +54,7 @@ class BrandTokens extends ThemeExtension<BrandTokens> {
       spacing: spacing ?? this.spacing,
       scanMinDuration: scanMinDuration ?? this.scanMinDuration,
       headlineWeight: headlineWeight ?? this.headlineWeight,
+      transitionDuration: transitionDuration ?? this.transitionDuration,
     );
   }
 
@@ -60,6 +69,9 @@ class BrandTokens extends ThemeExtension<BrandTokens> {
       spacing: lerpDouble(spacing, other.spacing, t)!,
       scanMinDuration: t < 0.5 ? scanMinDuration : other.scanMinDuration,
       headlineWeight: FontWeight.lerp(headlineWeight, other.headlineWeight, t)!,
+      transitionDuration: t < 0.5
+          ? transitionDuration
+          : other.transitionDuration,
     );
   }
 }

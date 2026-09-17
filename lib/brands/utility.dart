@@ -19,6 +19,7 @@ final utilityBrand = BrandConfig(
     spacing: 8,
     scanMinDuration: Duration(milliseconds: 1200),
     headlineWeight: FontWeight.w500,
+    transitionDuration: Duration(milliseconds: 90),
   ),
   features: [
     const PaymentBrandConfig(

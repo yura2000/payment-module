@@ -11,6 +11,7 @@ const _retailTokens = BrandTokens(
   spacing: 16,
   scanMinDuration: Duration(milliseconds: 2000),
   headlineWeight: FontWeight.w700,
+  transitionDuration: Duration(milliseconds: 350),
 );
 
 const _utilityTokens = BrandTokens(
@@ -21,6 +22,7 @@ const _utilityTokens = BrandTokens(
   spacing: 8,
   scanMinDuration: Duration(milliseconds: 1200),
   headlineWeight: FontWeight.w500,
+  transitionDuration: Duration(milliseconds: 350),
 );
 
 Widget _host(BrandTokens tokens, {bool disableAnimations = false}) =>

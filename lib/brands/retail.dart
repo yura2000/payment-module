@@ -22,6 +22,7 @@ final retailBrand = BrandConfig(
     spacing: 16,
     scanMinDuration: Duration(milliseconds: 2000),
     headlineWeight: FontWeight.w700,
+    transitionDuration: Duration(milliseconds: 350),
   ),
   features: [
     const PaymentBrandConfig(
