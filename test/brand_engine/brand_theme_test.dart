@@ -14,6 +14,7 @@ void main() {
       density: VisualDensity.compact,
       spacing: 8,
       scanMinDuration: Duration(milliseconds: 1200),
+      headlineWeight: FontWeight.w700,
     ),
     features: const [],
   );
