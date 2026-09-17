@@ -53,6 +53,10 @@ void main() {
   testWidgets('re-reads the duration when the Brand tokens change', (tester) async {
     await tester.pumpWidget(_host(_retailTokens));
     await tester.pumpWidget(_host(_utilityTokens));
+    // MaterialApp carries `theme` through an implicit AnimatedTheme, so Theme.of(context) only
+    // reflects the new BrandTokens once that transition (kThemeAnimationDuration, 200ms)
+    // settles — one bare pumpWidget leaves the widget still reading the old tokens.
+    await tester.pump(kThemeAnimationDuration);
 
     final state = tester.state<SecurityScanViewState>(find.byType(SecurityScanView));
     expect(state.controller.duration, const Duration(milliseconds: 1200));
