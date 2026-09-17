@@ -45,7 +45,10 @@ private class Api35ScreenRecordingMonitor(
 
     @Synchronized
     override fun start(): Boolean {
-        if (registered) windowManager.removeScreenRecordingCallback(callback)
+        if (registered) {
+            windowManager.removeScreenRecordingCallback(callback)
+            registered = false
+        }
         val state = windowManager.addScreenRecordingCallback(mainExecutor, callback)
         registered = true
         return state == WindowManager.SCREEN_RECORDING_STATE_VISIBLE

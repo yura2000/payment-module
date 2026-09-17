@@ -48,7 +48,8 @@ internal object DeviceRootSignals {
             }
             return process.inputStream.bufferedReader().use { it.readText() }
         } finally {
-            process.destroy()
+            // A command that ignores a polite stop must not outlive the check (no-op once it has exited).
+            process.destroyForcibly()
         }
     }
 }
